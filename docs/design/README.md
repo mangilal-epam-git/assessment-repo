@@ -1,36 +1,30 @@
 # Architecture diagrams and decision records
 
-This folder contains the solution overview and detailed infrastructure design for the Greenfield VectorHarbor Mobility assessment. The diagrams are Mermaid source and render in GitHub Markdown.
+This folder contains the solution overview and detailed infrastructure design for the Greenfield VectorHarbor Mobility assessment. Diagrams are written in Mermaid and render directly in GitHub Markdown.
 
 ## Documents
 
 - [Solution design](solution-design.md) — end-to-end logical architecture, requirements mapping, reliability, security, capacity, DR, AI safety, governance, and rollout gates.
-- [Terraform / IaC](iac.md) — parameterized team, domain, and provider onboarding design, state, CI, and safety gates.
+- [Subsystem diagrams](subsystem-diagrams.md) — Mermaid diagrams for the full solution and subsystem flows.
+- [Terraform / IaC](iac.md) — parameterized team, domain, and provider onboarding design.
 - [Development guide](../development.md) — implementation workflow, tests, retry policy, and known scaffold gaps.
-- [Wiki home](../wiki/Home.md) — navigable operator and contributor documentation.
+- [Wiki home](../wiki/Home.md)
+- [User access and payment controls](../wiki/User-Access-and-Payment-Controls.md)
 - [ADR-001: offer ranking](adr/ADR-001-provider-offer-ranking.md)
 - [ADR-002: access governance](adr/ADR-002-access-governance.md)
 
 ## System context
 
 ```mermaid
-C4Context
-  title VectorHarbor Marketplace - system context
-  Person(fleet, "Fleet operator", "Finds eligible data and approves actions")
-  Person(driver, "Driver", "Manages consent and personal records")
-  Person(provider, "Provider administrator", "Certifies an adapter and offers feeds")
-  Person(auditor, "Auditor", "Reviews access, pricing, provenance, and actions")
-  System(platform, "VectorHarbor platform", "Marketplace, telemetry, insights, supervised assistant")
-  System_Ext(identity, "OIDC identity provider", "Authentication and workforce federation")
-  System_Ext(payment, "Payment service provider", "External tokenized payment interface")
-  System_Ext(notify, "Notification providers", "Email, phone, messaging")
-  Rel(fleet, platform, "Browse, purchase, approve")
-  Rel(driver, platform, "Consent, inspect records")
-  Rel(provider, platform, "Register and certify data adapter")
-  Rel(auditor, platform, "Review controlled evidence")
-  Rel(platform, identity, "OIDC / scoped claims")
-  Rel(platform, payment, "Payment token / status only")
-  Rel(platform, notify, "Consent-checked delivery")
+flowchart LR
+  Guest[Guest] --> Platform[VectorHarbor marketplace]
+  Fleet[Fleet operator] --> Platform
+  Driver[Driver] --> Platform
+  Provider[Provider administrator] --> Platform
+  Auditor[Auditor / pricing approver] --> Platform
+  Platform --> IdP[OIDC identity provider]
+  Platform --> PSP[External payment provider]
+  Platform --> Notify[Email / phone / messaging providers]
 ```
 
 ## Offer evaluation sequence
@@ -54,38 +48,38 @@ sequenceDiagram
     Two-->>API: Offer array or failure
   end
   API->>Rank: Payloads + source IDs + snapshot + injected clock
-  Rank->>Rank: Validate, reject duplicates, check consent-quality fields/freshness
+  Rank->>Rank: Validate, reject duplicates, check quality and freshness
   Rank->>Rank: Decimal FX and markup; rank unrounded normalized cost
   Rank-->>API: Sorted winners, rejections, unavailable sources
   API-->>Fleet: 200 partial/complete, or 503 if no valid source array
 ```
 
-## Data and trust boundaries
+## Trust boundaries
 
 ```mermaid
 flowchart LR
   subgraph Untrusted[Untrusted provider boundary]
-    P[Provider offer payload]
+    Payload[Provider offer payload]
   end
   subgraph Control[Trusted control plane]
-    REG[Provider registry and endpoint identity]
-    CFG[Approved FX / margin snapshot]
-    POLICY[Consent, tenant, residency policy]
+    Registry[Provider registry and endpoint identity]
+    Config[Approved FX / margin snapshot]
+    Policy[Consent, tenant and residency policy]
   end
   subgraph Runtime[Regional data plane]
-    ADAPTER[Authenticated adapter]
-    VALIDATE[Schema, quality, freshness, duplicate checks]
-    RANK[Deterministic ranker]
-    AUDIT[Append-only decision evidence]
+    Adapter[Authenticated adapter]
+    Validate[Schema, quality, freshness and duplicate checks]
+    Rank[Deterministic ranker]
+    Audit[Append-only decision evidence]
   end
-  P --> ADAPTER
-  REG --> ADAPTER
-  ADAPTER --> VALIDATE
-  CFG --> RANK
-  POLICY --> VALIDATE
-  VALIDATE --> RANK
-  VALIDATE --> AUDIT
-  RANK --> AUDIT
+  Payload --> Adapter
+  Registry --> Adapter
+  Adapter --> Validate
+  Config --> Rank
+  Policy --> Validate
+  Validate --> Rank
+  Validate --> Audit
+  Rank --> Audit
 ```
 
-Provider claims are data to validate, not instructions. Audit evidence must be privacy-minimized, access-controlled, retained under policy, and sufficient to reproduce a ranking decision without retaining secrets or payment details.
+Provider claims are data to validate, not instructions. Audit evidence must be privacy-minimized, access-controlled, retained under policy, and sufficient to reproduce decisions without retaining secrets or payment details. These diagrams describe the proposed target; they do not claim every subsystem is implemented or deployed.
