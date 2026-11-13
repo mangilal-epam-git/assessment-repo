@@ -1,0 +1,11 @@
+# Generated Terraform state, plans, and local variables can contain sensitive data.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfplan
+terraform.tfvars
+!terraform.tfvars.example
+backend.hcl
+crash.log
+crash.*.log

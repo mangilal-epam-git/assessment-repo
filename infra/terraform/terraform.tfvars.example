@@ -1,0 +1,54 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+environment     = "dev"
+project_name    = "vectorharbor"
+location        = "northeurope"
+
+# Replace with the residency locations actually approved by legal/security.
+approved_locations = ["northeurope"]
+
+vnet_address_space           = "10.40.0.0/16"
+workload_subnet_prefix       = "10.40.1.0/24"
+private_endpoint_subnet_prefix = "10.40.2.0/24"
+storage_replication_type     = "ZRS"
+
+teams = {
+  fleet_ops = {
+    owner_email          = "fleet-ops@example.invalid"
+    cost_center          = "CC-104"
+    data_domains         = ["telematics", "diagnostics"]
+    # Replace with the Entra security-group or service-principal object ID.
+    principal_object_ids = ["11111111-1111-1111-1111-111111111111"]
+  }
+  data_governance = {
+    owner_email          = "data-governance@example.invalid"
+    cost_center          = "CC-210"
+    data_domains         = ["provider-quality"]
+    principal_object_ids = ["22222222-2222-2222-2222-222222222222"]
+  }
+}
+
+data_domains = {
+  telematics = {
+    jurisdiction   = "eu-north"
+    classification = "sensitive"
+    retention_days = 90
+    owning_team    = "fleet_ops"
+  }
+  diagnostics = {
+    jurisdiction   = "eu-north"
+    classification = "confidential"
+    retention_days = 180
+    owning_team    = "fleet_ops"
+  }
+  provider-quality = {
+    jurisdiction   = "eu-north"
+    classification = "internal"
+    retention_days = 365
+    owning_team    = "data_governance"
+  }
+}
+
+tags = {
+  CostCenter = "CC-104"
+  Owner      = "platform-team"
+}
