@@ -71,3 +71,31 @@ services:
       - ALL
     tmpfs:
       - /tmp
+
+  fleet-assistant:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: vh-fleet-assistant
+    ports:
+      - "8082:8082"
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: info
+      AGENT_PORT: "8082"
+      # Needs no API key: the default planner runs in-process. Set
+      # MODEL_BACKEND and MODEL_API_KEY to use a real model instead.
+      MODEL_BACKEND: deterministic
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8082/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp

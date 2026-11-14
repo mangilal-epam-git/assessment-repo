@@ -18,6 +18,8 @@
     "check": "node scripts/check.js && node scripts/check-terraform.js && node scripts/check-docs.js",
     "smoke": "node scripts/smoke.js",
     "check:tf": "node scripts/check-terraform.js",
-    "check:docs": "node scripts/check-docs.js"
+    "check:docs": "node scripts/check-docs.js",
+    "agent": "node src/agent/server.js",
+    "start:agent": "node src/agent/server.js"
   }
 }

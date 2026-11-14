@@ -26,7 +26,7 @@ evidence exists. Status is deliberately blunt:
 | F12 | Configurable notifications via email, phone, messaging, with consent, quiet hours, escalation | Designed | [17](17-notifications.md) | Category model, escalation that expires |
 | F13 | Handle duplicate, delayed, out-of-order events; intermittent connectivity; conflicting device-vehicle identity | Partial | Duplicate `productId` rejection (coded); [6](06-telemetry-ingestion.md), [3.4](03-domain-model.md#34-device-to-vehicle-identity-conflicts) | `test/unit/ranking.test.js` duplicate tests |
 | F14 | Tenant isolation, driver-location privacy, geofenced residency, revocable analytics/AI rights | Designed | [8.3](08-security.md#83-authorisation-model), [10](10-privacy-consent-residency.md), [ADR-0011](../adr/0011-multi-tenancy-isolation.md) | Four isolation layers; purpose-scoped consent |
-| F15 | Agents propose using allow-listed tools; explicit human approval before spend or operational change; no remote actuation | Designed | [7](07-agentic-workflows.md), [ADR-0010](../adr/0010-agent-tool-allowlisting.md) | No executable capability bindable by an agent |
+| F15 | Agents propose using allow-listed tools; explicit human approval before spend or operational change; no remote actuation | **Coded** | `src/agent/`, [7](07-agentic-workflows.md), [ADR-0010](../adr/0010-agent-tool-allowlisting.md) | `test/integration/agent-supervision.test.js`: self-approval, token replay, expiry, injection and actuation attempts all refused |
 | F16 | Explainable insights: source events, quality, freshness, model/version attribution | Partial | Response carries provider, counts, quality ratio, `observedAt`, effective expiry, versions, rejections (coded); [5.4](05-data-quality-and-provenance.md#54-explainability-of-insights) | Golden test asserts every field |
 | F17 | Detect spoofed telemetry; prevent low-quality feeds appearing artificially cheap | Partial | Quality floor and per-valid-event normalisation (coded); [5.2](05-data-quality-and-provenance.md#52-four-independent-verification-layers) for spoof detection | Test: a cheaper bundle with 0.80 quality is excluded |
 
@@ -105,10 +105,15 @@ Every requirement from the coding brief, with the test that proves it.
 
 | Status | Count |
 | --- | --- |
-| Coded with tests | 45 |
+| Coded with tests | 46 |
 | Implemented in IaC | 8 |
 | Partial (coded in part, remainder designed) | 6 |
-| Designed only | 18 |
+| Designed only | 17 |
+
+The supervised agent workflow (F15) moved from *designed* to *coded* after
+the initial submission: `src/agent/` implements the tool registry, proposal
+lifecycle, approval gate, execution service and hash-chained audit ledger,
+with a browser console for demonstrating them.
 
 Nothing in the brief is unaddressed. What is designed rather than built is
 listed explicitly in [22 Assumptions and gaps](22-assumptions-and-gaps.md),

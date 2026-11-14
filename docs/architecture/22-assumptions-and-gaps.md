@@ -71,7 +71,7 @@ Stated plainly, by category.
 | --- | --- | --- |
 | Telemetry ingestion pipeline | [6](06-telemetry-ingestion.md) | 3–4 months, 4 engineers |
 | Quality verification and spoof detection | [5](05-data-quality-and-provenance.md) | 4–6 months, 3 engineers + data science |
-| Agent orchestrator, tool registry, approval service | [7](07-agentic-workflows.md) | 4–5 months, 4 engineers |
+| ~~Agent orchestrator, tool registry, approval service~~ | **Implemented** in `src/agent/` | — |
 | Consent service with purpose scoping | [10](10-privacy-consent-residency.md) | 2–3 months, 2 engineers |
 | Merger REST API and certification pipeline | [15](15-ma-integration-governance.md) | 3–4 months, 3 engineers |
 | Multi-region residency enforcement | [10.3](10-privacy-consent-residency.md#103-residency) | 2–3 months, 2 engineers |
@@ -130,7 +130,8 @@ To be unambiguous about the state of the deliverable:
 
 | Item | State |
 | --- | --- |
-| Service code | **Runs.** 188 tests pass; 97.0% line coverage. An independent review found and fixed eleven defects, two critical; regression tests added |
+| Service code | **Runs.** 288 tests pass; 96.2% line coverage. An independent review found and fixed eleven defects, two critical; regression tests added |
+| Supervised agent service | **Runs.** Console at `http://localhost:8082/`. Deterministic planner by default; Anthropic, OpenAI, Azure OpenAI and Ollama adapters included. Fleet data is in memory and there is no authentication: a demonstration of a control, not a production service |
 | Mock providers | **Run.** Fault injection exercised by tests |
 | Docker images | Defined; built in CI. Not built in this environment (no Docker available here) |
 | Docker Compose stack | Defined; smoke-tested in CI. Not run in this environment |

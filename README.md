@@ -3,16 +3,21 @@
 Solution architecture and reference implementation for VectorHarbor's
 cloud-native telematics data marketplace and supervised fleet assistant.
 
-The **coded slice** is provider-offer normalisation and ranking: a service
-that combines telemetry offers from two providers and returns the best
-**eligible** offer per canonical product, comparing on quality-normalised
-cost rather than headline bundle price.
+Two services are implemented:
+
+1. **Best offers** — provider-offer normalisation and ranking. Combines
+   telemetry offers from two providers and returns the best **eligible**
+   offer per canonical product, comparing on quality-normalised cost rather
+   than headline bundle price. This is the coding sub-task from the brief.
+2. **Fleet assistant** — the supervised agent workflow, with a browser
+   console. The assistant proposes maintenance work; a human approves;
+   nothing happens otherwise. Runs with no API key by default.
 
 | | |
 | --- | --- |
 | **Architecture documentation** | [`docs/`](docs/README.md) — 23 documents, 12 ADRs, Mermaid diagrams |
 | **Infrastructure as code** | [`infrastructure/`](infrastructure/README.md) — Terraform for AWS and Azure |
-| **Tests** | 188 passing, 97.0% line coverage (thresholds enforced) |
+| **Tests** | 288 passing, 96.2% line coverage (thresholds enforced) |
 | **Runtime dependencies** | **Zero** — Node.js standard library only |
 
 ---
@@ -198,6 +203,7 @@ docker compose up --build        # or: make up
 | Metrics | http://localhost:8080/metrics |
 | Mock provider 1 | http://localhost:8081/provider/telemetry1 |
 | Mock provider 2 | http://localhost:8081/provider/telemetry2 |
+| **Fleet assistant console** | **http://localhost:8082/** (start with `npm run agent`) |
 
 Stop with `docker compose down -v` (or `make down`).
 
@@ -245,6 +251,33 @@ development, is in
 [docs/coding-task/test-strategy.md](docs/coding-task/test-strategy.md).
 
 ---
+
+## The supervised fleet assistant
+
+```bash
+npm run agent
+```
+
+Then open **http://localhost:8082/**. No API key, no network and no model
+are required: the default planner is deterministic and runs in-process.
+
+Ask it to review the fleet. It inspects vehicles, prices the work and drafts
+a proposal — then stops. Approving is a separate act, and raising the work
+order is a third. Press **try to make it act** to ask it to apply a parking
+brake and self-approve, and watch it refuse: no such tool exists, there is no
+credential it can use to approve itself, and the attempt is recorded in a
+hash-chained ledger you can verify from the page.
+
+To use a real model instead:
+
+```bash
+MODEL_BACKEND=anthropic MODEL_API_KEY=sk-ant-... npm run agent
+MODEL_BACKEND=openai    MODEL_API_KEY=sk-...     npm run agent
+MODEL_BACKEND=ollama    MODEL_NAME=llama3.1      npm run agent   # local, no key
+```
+
+The safety properties are identical on every backend, which is the point.
+Full walkthrough: [docs/coding-task/agent-demo.md](docs/coding-task/agent-demo.md).
 
 ## Things worth trying
 
@@ -407,7 +440,15 @@ list with defaults in [`.env.example`](.env.example).
 │   │   ├── service.js        # Orchestration and partial-result policy
 │   │   ├── app.js            # Routing, shedding, safe errors
 │   │   └── server.js         # Composition root and lifecycle
-│   └── mock-providers/       # The two placeholder endpoints
+│   ├── mock-providers/       # The two placeholder endpoints
+│   └── agent/                # Supervised fleet assistant
+│       ├── tools/registry.js # The capability boundary: allow-list + schemas
+│       ├── proposals.js      # Proposal lifecycle and the human approval gate
+│       ├── execution.js      # The only thing that causes effects; token required
+│       ├── audit.js          # Append-only, hash-chained ledger
+│       ├── orchestrator.js   # The agent loop, written by hand
+│       ├── model/            # Anthropic, OpenAI, Ollama, deterministic
+│       └── ui.js             # The supervision console
 ├── test/
 │   ├── unit/                 # 129 tests
 │   └── integration/          # 59 tests, real sockets
@@ -438,6 +479,7 @@ list with defaults in [`.env.example`](.env.example).
 | No caching of provider offers | Explicitly prohibited; serving a stale price is the conduct the group settled over | [0002](docs/adr/0002-quality-normalised-comparison.md) |
 | Partial results are HTTP 200, not an error | Three of five products with reasons beats a 500 | [api-contract](docs/coding-task/api-contract.md) |
 | Agents propose; humans approve; no actuation code exists | A prompt is a request; absent capability is a constraint | [0010](docs/adr/0010-agent-tool-allowlisting.md) |
+| The agent's default planner needs no model at all | A safety demonstration must not depend on a vendor being reachable | [0013](docs/adr/0013-agent-model-provider-abstraction.md) |
 
 ---
 
@@ -448,12 +490,12 @@ The brief asks for unimplemented requirements to be identified honestly.
 **Built and tested:** offer validation, eligibility, quality-normalised
 ranking, exact arithmetic, versioned hot-reloadable configuration, retry and
 resilience, partial results, observability, the mock providers, containers,
-CI/CD, and Terraform for both clouds.
+CI/CD, Terraform for both clouds, and the supervised agent workflow with its
+tool registry, approval gate, execution service, audit ledger and console.
 
 **Designed, not built:** telemetry ingestion, quality verification and spoof
-detection, the agent orchestrator and approval service, consent service,
-merger REST API, notifications, payments, loyalty and advertising, and the
-web frontend.
+detection, consent service, merger REST API, notifications, payments, loyalty
+and advertising, and the customer-facing web frontend.
 
 Full detail, with effort estimates and known gaps in what *is* built, in
 [docs/architecture/22-assumptions-and-gaps.md](docs/architecture/22-assumptions-and-gaps.md).

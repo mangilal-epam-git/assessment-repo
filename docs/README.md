@@ -72,6 +72,7 @@ plainly what is built, what is designed, and what is neither.
 | [0010](adr/0010-agent-tool-allowlisting.md) | Agents propose; humans approve; no remote actuation |
 | [0011](adr/0011-multi-tenancy-isolation.md) | Tenant isolation model and its enforcement points |
 | [0012](adr/0012-payment-provider-abstraction.md) | Payment service provider abstraction and the Bitcoin position |
+| [0013](adr/0013-agent-model-provider-abstraction.md) | Pluggable model backend with a deterministic default |
 
 ### Coding task
 
@@ -80,6 +81,7 @@ plainly what is built, what is designed, and what is neither.
 | [API contract](coding-task/api-contract.md) | Request and response shapes, reason codes, status semantics |
 | [Worked examples](coding-task/worked-examples.md) | Every fixture number derived by hand, step by step |
 | [Test strategy](coding-task/test-strategy.md) | What is tested, at which level, and what each test defends |
+| [Supervised agent demo](coding-task/agent-demo.md) | Running the agent console, switching models, the injection demonstration |
 
 ### Runbooks
 

@@ -9,6 +9,13 @@ This section describes how that line is enforced by architecture rather than
 by prompt instructions, because a prompt is a request and an architecture is a
 constraint.
 
+> **Implemented.** A working slice of this design ships in `src/agent/`, with
+> a supervision console at `http://localhost:8082/`. It runs with no API key
+> by default and supports Anthropic, OpenAI, Azure OpenAI and local Ollama
+> models. See [the demo guide](../coding-task/agent-demo.md). The safety
+> properties below are covered by tests in `test/unit/agent-*.test.js` and
+> `test/integration/agent-supervision.test.js`.
+
 ## 7.1 Principle: propose, never execute
 
 ```mermaid
