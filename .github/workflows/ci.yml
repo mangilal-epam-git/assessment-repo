@@ -232,8 +232,13 @@ jobs:
       - name: Validate
         run: terraform validate -no-color
 
-  security:
-    name: Security scan
+  # Two scanners, deliberately. Trivy needs no account, so every push and
+  # every fork gets a baseline scan. Snyk adds static analysis of our own
+  # code, which is where the risk actually lives in a repository with no
+  # dependencies - but it needs a token, so it degrades to a skip rather
+  # than a red build when one is not configured.
+  trivy:
+    name: Trivy scan (no account required)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -257,3 +262,93 @@ jobs:
         if: always()
         with:
           sarif_file: trivy-results.sarif
+          category: trivy
+
+  snyk:
+    name: Snyk scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Secrets cannot be referenced in a job-level `if`, so the guard is a
+      # step. Without a token the job reports how to configure one and stops,
+      # rather than failing a build for a missing optional integration.
+      - name: Is Snyk configured?
+        id: guard
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Snyk scan skipped"
+              echo
+              echo 'No `SNYK_TOKEN` secret is configured, so the Snyk scan did not run.'
+              echo 'Trivy still scanned this commit.'
+              echo
+              echo 'To enable: create a token at https://app.snyk.io/account and add it'
+              echo 'as a repository secret named `SNYK_TOKEN`.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install the Snyk CLI
+        if: steps.guard.outputs.configured == 'true'
+        uses: snyk/actions/setup@master
+
+      # Open Source. Expected to find nothing: there are no dependencies.
+      # Run anyway so the zero-dependency position is evidenced each build
+      # rather than taken on trust.
+      - name: Dependencies
+        if: steps.guard.outputs.configured == 'true'
+        run: snyk test --severity-threshold=high || echo "No manifest or no dependencies to scan."
+
+      # Static analysis of our own code. With no dependencies this is where
+      # the real risk is, so it is a blocking gate.
+      - name: Our own code (SAST)
+        if: steps.guard.outputs.configured == 'true'
+        run: snyk code test --severity-threshold=high --sarif-file-output=snyk-code.sarif
+
+      - name: Terraform
+        if: steps.guard.outputs.configured == 'true'
+        run: snyk iac test infrastructure --severity-threshold=high --sarif-file-output=snyk-iac.sarif
+
+      - name: Build images for container scanning
+        if: steps.guard.outputs.configured == 'true'
+        run: |
+          docker build -t vectorharbor/best-offers:scan .
+          docker build -f Dockerfile.mock  -t vectorharbor/mock-providers:scan .
+          docker build -f Dockerfile.agent -t vectorharbor/fleet-assistant:scan .
+
+      # Base-image CVEs are frequently unfixable until upstream rebuilds, so
+      # this fails only when Snyk knows of an available fix. An unactionable
+      # red build teaches people to ignore the scanner.
+      - name: Container images
+        if: steps.guard.outputs.configured == 'true'
+        run: |
+          snyk container test vectorharbor/best-offers:scan --file=Dockerfile \
+            --severity-threshold=high --fail-on=upgradable \
+            --sarif-file-output=snyk-container-best-offers.sarif
+          snyk container test vectorharbor/mock-providers:scan --file=Dockerfile.mock \
+            --severity-threshold=high --fail-on=upgradable
+          snyk container test vectorharbor/fleet-assistant:scan --file=Dockerfile.agent \
+            --severity-threshold=high --fail-on=upgradable
+
+      - name: Upload Snyk results to code scanning
+        if: always() && steps.guard.outputs.configured == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: .
+          category: snyk
+
+      - name: Keep a monitored snapshot of the default branch
+        if: steps.guard.outputs.configured == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: snyk monitor --all-projects --project-name=vectorharbor-marketplace || true

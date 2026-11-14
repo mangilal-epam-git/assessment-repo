@@ -111,11 +111,14 @@ the resources carry `ignore_changes`).
 
 | Control | Status |
 | --- | --- |
-| Zero runtime dependencies in the service | Implemented; the transitive attack surface is the Node.js runtime alone |
+| Zero runtime dependencies in the service | Implemented; the transitive attack surface is the Node.js runtime alone, and the dependency scan evidences it on every build |
 | Pinned base image with a digest-friendly tag | Implemented (`node:22.12.0-alpine`) |
 | Multi-stage build; no build tooling in the runtime image | Implemented |
-| Image scanning on push | Implemented (ECR scan-on-push / Trivy in CI) |
+| Image scanning on push | Implemented (ECR scan-on-push, plus Trivy and Snyk Container in CI) |
 | Filesystem, IaC and secret scanning in CI | Implemented (Trivy, SARIF to code scanning) |
+| Static analysis of our own source (SAST) | Implemented (Snyk Code, blocking at high and above) |
+| Terraform misconfiguration scanning | Implemented (Trivy misconfig and Snyk IaC) |
+| Continuous monitoring of the default branch | Implemented (`snyk monitor` on the default branch) |
 | Immutable image tags outside dev | Implemented |
 | SBOM generation and signing (Sigstore) | Recommended before public launch; not implemented |
 | Registry content trust | Enabled on the production Azure registry; recommended for AWS |

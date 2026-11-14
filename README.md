@@ -235,12 +235,26 @@ node src/best-offers/server.js
 
 ```bash
 npm test                  # everything, with coverage thresholds enforced
+npm run test:report       # the same, plus JUnit XML and LCOV in reports/
 npm run test:unit         # unit tests only, sub-second
 npm run test:integration  # integration tests, real sockets and files
 npm run check             # static checks + Terraform consistency, offline
 npm run smoke             # contract check against a running instance
 make verify               # check + test, exactly what CI runs
 ```
+
+Security scanning needs the Snyk CLI (`npm i -g snyk && snyk auth`):
+
+```bash
+npm run security           # dependencies, our own code (SAST), Terraform
+make security-container    # build the images, then scan them
+```
+
+Snyk Open Source finds nothing here by design — there are zero dependencies
+— so the scan that matters is **Snyk Code** over the ~6 200 lines we wrote
+ourselves. CI also runs Trivy, which needs no account, so every push gets a
+baseline scan whether or not `SNYK_TOKEN` is set. See
+[SECURITY.md](SECURITY.md#scanning).
 
 Coverage thresholds (90% lines, 90% functions, 80% branches) are enforced by
 the test command, so `npm test` fails if coverage regresses. Current:

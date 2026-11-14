@@ -21,6 +21,13 @@
     "check:docs": "node scripts/check-docs.js",
     "agent": "node src/agent/server.js",
     "start:agent": "node src/agent/server.js",
-    "test:report": "node -e \"require('node:fs').mkdirSync('reports',{recursive:true})\" && node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=80 --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"scripts/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=reports/junit.xml --test-reporter=lcov --test-reporter-destination=reports/lcov.info \"test/**/*.test.js\""
+    "test:report": "node -e \"require('node:fs').mkdirSync('reports',{recursive:true})\" && node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=80 --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"scripts/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=reports/junit.xml --test-reporter=lcov --test-reporter-destination=reports/lcov.info \"test/**/*.test.js\"",
+    "security": "npm run security:deps && npm run security:code && npm run security:iac",
+    "security:deps": "snyk test --severity-threshold=high",
+    "security:code": "snyk code test --severity-threshold=high",
+    "security:iac": "snyk iac test infrastructure --severity-threshold=high",
+    "security:container": "snyk container test vectorharbor/best-offers:local --file=Dockerfile --severity-threshold=high --fail-on=upgradable",
+    "security:monitor": "snyk monitor --all-projects --project-name=vectorharbor-best-offers",
+    "security:report": "node -e \"require('node:fs').mkdirSync('reports',{recursive:true})\" && snyk code test --sarif-file-output=reports/snyk-code.sarif || true"
   }
 }

@@ -38,6 +38,16 @@ test-integration: ## Run integration tests only
 check: ## Static checks: syntax, formatting conventions, repo hygiene
 	npm run check
 
+.PHONY: security
+security: ## Snyk scans: dependencies, our own code, and Terraform
+	npm run security
+
+.PHONY: security-container
+security-container: docker-build ## Snyk scan of the built container images
+	snyk container test vectorharbor/best-offers:local --file=Dockerfile --severity-threshold=high --fail-on=upgradable
+	snyk container test vectorharbor/mock-providers:local --file=Dockerfile.mock --severity-threshold=high --fail-on=upgradable
+	snyk container test vectorharbor/fleet-assistant:local --file=Dockerfile.agent --severity-threshold=high --fail-on=upgradable
+
 .PHONY: verify
 verify: check test ## Everything CI runs
 

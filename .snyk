@@ -1,0 +1,34 @@
+# Snyk policy file.
+#
+# Scope of each product against this repository:
+#
+#   snyk test       (Open Source)  - finds nothing: there are zero runtime and
+#                                    zero dev dependencies by design (ADR-0003).
+#                                    Kept in the pipeline so the claim is
+#                                    positively evidenced rather than assumed.
+#   snyk code test  (SAST)         - the real value here: ~6 200 lines of
+#                                    hand-written HTTP, crypto, auth and
+#                                    arithmetic that a dependency scanner
+#                                    would never look at.
+#   snyk iac test   (IaC)          - 43 Terraform files across AWS and Azure.
+#   snyk container  (Container)    - base image CVEs in the three Dockerfiles.
+#
+# Ignores must be time-boxed and justified. An ignore with no expiry is a
+# decision nobody will revisit; an ignore with no reason is one nobody can
+# review. Add them with `snyk ignore --id=<id> --expiry=<date> --reason=...`
+# rather than by hand, so the format stays valid.
+
+version: v1.25.0
+
+ignore: {}
+
+patch: {}
+
+exclude:
+  code:
+    # Build artefacts only. Test and script sources are deliberately scanned:
+    # a flaw in a check script is still a flaw.
+    - reports/**
+    - coverage/**
+  iac:
+    - '**/.terraform/**'

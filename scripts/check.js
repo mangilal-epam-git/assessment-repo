@@ -93,7 +93,7 @@ for (const file of sourceFiles) {
 // 5. Required project files exist.
 const REQUIRED = [
   'README.md', 'package.json', 'Dockerfile', 'Dockerfile.mock', 'Dockerfile.agent', 'docker-compose.yml',
-  '.gitignore', '.editorconfig', 'LICENSE', 'CONTRIBUTING.md', 'SECURITY.md',
+  '.gitignore', '.editorconfig', '.snyk', 'LICENSE', 'CONTRIBUTING.md', 'SECURITY.md',
   'config/pricing-config.json', 'fixtures/telemetry1.json', 'fixtures/telemetry2.json',
   'docs/README.md', 'infrastructure/README.md',
 ];
