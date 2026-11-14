@@ -1,0 +1,15 @@
+Copyright (c) 2026 VectorHarbor Mobility.
+
+All rights reserved.
+
+This repository was produced as an architecture and engineering assessment
+deliverable. It is provided to VectorHarbor Mobility for evaluation purposes.
+
+Third-party dependency position
+-------------------------------
+The runtime of the best-offers service uses only the Node.js standard library
+and therefore carries no third-party runtime licences. Build, deployment and
+documentation tooling referenced by this repository (Node.js, Docker,
+Terraform and the cloud providers' Terraform providers) is used unmodified
+under its own licence; see docs/architecture/boundaries.md for the full
+licensing position and the open-source policy proposed for the platform.

@@ -1,0 +1,7 @@
+[
+  {"productId":"eu-north-location-hour","eventCount":100000,"validEventCount":98000,"priceMinor":1200,"currency":"EUR","observedAt":"2026-06-15T10:00:00Z","expiresAt":"2026-06-15T10:15:00Z"},
+  {"productId":"eu-north-diagnostics-hour","eventCount":50000,"validEventCount":47000,"priceMinor":900,"currency":"USD","observedAt":"2026-06-15T10:01:00Z"},
+  {"productId":"eu-west-ev-health-hour","eventCount":20000,"validEventCount":19600,"priceMinor":800,"currency":"GBP","observedAt":"2026-06-15T10:02:00Z"},
+  {"productId":"eu-west-braking-hour","eventCount":40000,"validEventCount":32000,"priceMinor":300,"currency":"EUR","observedAt":"2026-06-15T10:03:00Z"},
+  {"productId":"eu-north-temperature-hour","eventCount":10000,"validEventCount":9700,"priceMinor":450,"currency":"EUR","observedAt":"2026-06-15T09:40:00Z"}
+]

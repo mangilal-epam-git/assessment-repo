@@ -1,0 +1,11 @@
+# Remote state for the staging environment.
+#   terraform init -backend-config=environments/staging.backend.hcl
+#
+# Create the storage account and container once per subscription before the
+# first init; see infrastructure/README.md for the bootstrap commands.
+
+resource_group_name  = "rg-vectorharbor-tfstate"
+storage_account_name = "stvhtfstateREPLACEME"
+container_name       = "tfstate"
+key                  = "best-offers/staging/terraform.tfstate"
+use_azuread_auth     = true

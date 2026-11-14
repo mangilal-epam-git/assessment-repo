@@ -1,0 +1,36 @@
+# Production: phase-one launch cohort (20 fleets, one jurisdiction).
+# Sizing follows docs/architecture/capacity-plan.md.
+
+environment = "prod"
+aws_region  = "eu-north-1" # Stockholm: inside the EU residency boundary
+
+vpc_cidr                = "10.42.0.0/16"
+availability_zone_count = 3
+single_nat_gateway      = false # per-AZ egress; an AZ loss must not cut providers off
+
+service_cpu           = 1024
+service_memory        = 2048
+service_desired_count = 3
+service_min_capacity  = 3
+service_max_capacity  = 40
+
+# Requests per target per MINUTE; 12000/min = 200 rps per task.
+target_requests_per_task = 12000
+
+# Production consumes certified provider feeds, never the mocks.
+deploy_mock_providers   = false
+provider_telemetry1_url = "https://telemetry1.providers.vectorharbor.example/provider/telemetry1"
+provider_telemetry2_url = "https://telemetry2.providers.vectorharbor.example/provider/telemetry2"
+
+log_level          = "info"
+log_retention_days = 90
+
+enable_deletion_protection = true
+
+certificate_arn = "arn:aws:acm:eu-north-1:000000000000:certificate/REPLACE-ME"
+
+# Phase one serves a selected cohort; widen this at each rollout gate.
+allowed_ingress_cidrs   = ["0.0.0.0/0"]
+waf_rate_limit_per_5min = 10000
+
+alarm_email_subscriptions = ["platform-oncall@vectorharbor.example"]

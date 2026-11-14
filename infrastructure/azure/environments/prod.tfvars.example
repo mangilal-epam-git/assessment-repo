@@ -1,0 +1,28 @@
+# Production on Azure: phase-one launch cohort.
+# Sizing follows docs/architecture/capacity-plan.md.
+
+environment = "prod"
+location    = "swedencentral" # inside the EU residency boundary
+
+vnet_cidr = "10.52.0.0/16"
+
+service_cpu    = 1.0
+service_memory = "2Gi"
+min_replicas   = 3
+max_replicas   = 40
+
+concurrent_requests_per_replica = 100
+
+# Production consumes certified provider feeds, never the mocks.
+deploy_mock_providers   = false
+provider_telemetry1_url = "https://telemetry1.providers.vectorharbor.example/provider/telemetry1"
+provider_telemetry2_url = "https://telemetry2.providers.vectorharbor.example/provider/telemetry2"
+
+log_level          = "info"
+log_retention_days = 90
+
+enable_front_door         = true
+waf_mode                  = "Prevention"
+waf_rate_limit_per_minute = 2000
+
+alarm_email_subscriptions = ["platform-oncall@vectorharbor.example"]

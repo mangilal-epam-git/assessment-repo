@@ -1,0 +1,23 @@
+# Staging on Azure: production-shaped, smaller. Launch gates are measured here.
+
+environment = "staging"
+location    = "swedencentral"
+
+vnet_cidr = "10.51.0.0/16"
+
+service_cpu    = 0.5
+service_memory = "1Gi"
+min_replicas   = 2
+max_replicas   = 20
+
+concurrent_requests_per_replica = 100
+
+deploy_mock_providers = true
+log_level             = "info"
+log_retention_days    = 30
+
+enable_front_door         = true
+waf_mode                  = "Detection" # tune the rules here before enforcing
+waf_rate_limit_per_minute = 4000
+
+alarm_email_subscriptions = ["platform-oncall@vectorharbor.example"]

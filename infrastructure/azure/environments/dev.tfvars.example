@@ -1,0 +1,21 @@
+# Development on Azure: smallest footprint that still exercises the topology.
+# Copy to dev.tfvars. Never commit a real tfvars file.
+
+environment = "dev"
+location    = "swedencentral"
+
+vnet_cidr = "10.50.0.0/16"
+
+service_cpu    = 0.25
+service_memory = "0.5Gi"
+min_replicas   = 1
+max_replicas   = 3
+
+deploy_mock_providers = true
+log_level             = "debug"
+log_retention_days    = 30
+
+# Front Door carries a fixed monthly cost; dev goes direct to the ingress.
+enable_front_door = false
+
+alarm_email_subscriptions = ["platform-dev@vectorharbor.example"]

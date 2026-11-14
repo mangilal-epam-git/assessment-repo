@@ -1,0 +1,13 @@
+# Remote state for the prod environment.
+#   terraform init -backend-config=environments/prod.backend.hcl
+#
+# Create the bucket and lock table once per account before the first init;
+# see infrastructure/README.md for the bootstrap commands.
+
+bucket       = "vectorharbor-tfstate-REPLACE-ACCOUNT-ID"
+key          = "best-offers/prod/terraform.tfstate"
+region       = "eu-north-1"
+encrypt      = true
+use_lockfile = true
+# Optional, if you use a customer-managed key for state encryption:
+# kms_key_id = "arn:aws:kms:eu-north-1:000000000000:key/REPLACE-ME"

@@ -1,0 +1,27 @@
+# Development: cheapest configuration that still exercises the real topology.
+# Copy to dev.tfvars and adjust. Never commit a real tfvars file.
+
+environment = "dev"
+aws_region  = "eu-north-1"
+
+vpc_cidr                = "10.40.0.0/16"
+availability_zone_count = 2
+single_nat_gateway      = true # one AZ of egress is acceptable here
+
+service_cpu           = 256
+service_memory        = 512
+service_desired_count = 1
+service_min_capacity  = 1
+service_max_capacity  = 4
+
+deploy_mock_providers = true
+log_level             = "debug"
+log_retention_days    = 14
+
+enable_deletion_protection = false
+certificate_arn            = "" # HTTP only in dev
+
+# Narrow this to the office and VPN ranges in a real account.
+allowed_ingress_cidrs = ["0.0.0.0/0"]
+
+alarm_email_subscriptions = ["platform-dev@vectorharbor.example"]

@@ -1,0 +1,36 @@
+# Node
+node_modules/
+npm-debug.log*
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets - never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+.terraformrc
+terraform.rc
+# Real variable files hold account ids and CIDRs; only the examples are tracked.
+*.auto.tfvars
+terraform.tfvars
+!*.tfvars.example
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp

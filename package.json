@@ -1,0 +1,23 @@
+{
+  "name": "vectorharbor-best-offers",
+  "version": "1.0.0",
+  "description": "VectorHarbor Mobility - provider-offer normalisation and ranking service (quality-normalised best eligible offer per canonical telemetry product).",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node src/best-offers/server.js",
+    "start:mock": "node src/mock-providers/server.js",
+    "demo": "node scripts/demo.js",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=80 --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"scripts/**\" \"test/**/*.test.js\"",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:integration": "node --test \"test/integration/*.test.js\"",
+    "check": "node scripts/check.js && node scripts/check-terraform.js && node scripts/check-docs.js",
+    "smoke": "node scripts/smoke.js",
+    "check:tf": "node scripts/check-terraform.js",
+    "check:docs": "node scripts/check-docs.js"
+  }
+}

@@ -1,0 +1,73 @@
+# Local one-command stack: mock providers plus the best-offers service.
+#
+#   docker compose up --build
+#   curl http://localhost:8080/best-offers
+#
+# The service clock is fixed to the evaluation instant from the brief so the
+# fixture output is reproducible. Remove FIXED_CLOCK for live behaviour.
+
+services:
+  mock-providers:
+    build:
+      context: .
+      dockerfile: Dockerfile.mock
+    container_name: vh-mock-providers
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8081/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+
+  best-offers:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: vh-best-offers
+    depends_on:
+      mock-providers:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Not "production": this stack pins the clock for reproducible fixture
+      # output, and the service refuses a pinned clock in production because
+      # it would make every freshness and expiry check pass forever.
+      NODE_ENV: development
+      LOG_LEVEL: info
+      PORT: "8080"
+      PROVIDER_TELEMETRY1_URL: http://mock-providers:8081/provider/telemetry1
+      PROVIDER_TELEMETRY2_URL: http://mock-providers:8081/provider/telemetry2
+      PROVIDER_TIMEOUT_MS: "2000"
+      PROVIDER_MAX_ATTEMPTS: "3"
+      REQUEST_TIMEOUT_MS: "10000"
+      MAX_CONCURRENT_REQUESTS: "256"
+      # Deterministic demo clock - matches the fixtures in the brief.
+      FIXED_CLOCK: "2026-06-15T10:05:00Z"
+      # Local-only token; real deployments inject this from a secret store.
+      ADMIN_TOKEN: local-dev-admin-token
+    volumes:
+      # Mounted read-write so the runtime-reload walkthrough in the README works.
+      - ./config:/app/config
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
