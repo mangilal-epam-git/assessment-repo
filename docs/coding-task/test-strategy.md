@@ -215,11 +215,55 @@ found this way before CI ever ran.
 
 ```bash
 npm test                  # everything, with coverage thresholds
+npm run test:report       # the same, plus JUnit XML and LCOV in reports/
 npm run test:unit         # unit only, sub-second
 npm run test:integration  # integration only
 npm run check             # static checks, offline
 make verify               # check + test, what CI runs
 ```
+
+## Where to see the results
+
+### Locally
+
+`npm test` prints a per-test result and a coverage table per file. For
+machine-readable output:
+
+```bash
+npm run test:report
+```
+
+| File | Format | Use |
+| --- | --- | --- |
+| `reports/junit.xml` | JUnit XML | Any CI system, IDE test panel, or a test-report viewer |
+| `reports/lcov.info` | LCOV | `genhtml reports/lcov.info -o reports/html` for a browsable coverage report, or a VS Code coverage gutter extension |
+
+`reports/` is git-ignored; it is a build artefact, not source.
+
+### In a pull request
+
+CI publishes the results in three places:
+
+| Where | What |
+| --- | --- |
+| **Checks tab** | A "Test results" check with each failure annotated on the line that failed |
+| **Job summary** | A table of tests run and failures, per operating system |
+| **Artifacts** | `test-reports-<os>-node22.x` containing the JUnit XML and LCOV, downloadable for 14 days |
+
+The tests run on Linux, macOS and Windows, so a platform-specific failure is
+attributed to its platform rather than appearing as a mystery.
+
+### Current numbers
+
+| Metric | Threshold | Actual |
+| --- | --- | --- |
+| Tests | — | **302** |
+| Line coverage | 90% | **96.8%** |
+| Branch coverage | 80% | **88.8%** |
+| Function coverage | 90% | **92.7%** |
+
+Thresholds are enforced by the test command, so a regression fails the build
+rather than being reported and ignored.
 
 ## Deliberate gaps
 

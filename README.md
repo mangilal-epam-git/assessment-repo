@@ -244,7 +244,22 @@ make verify               # check + test, exactly what CI runs
 
 Coverage thresholds (90% lines, 90% functions, 80% branches) are enforced by
 the test command, so `npm test` fails if coverage regresses. Current:
-**97.0% lines, 91.1% functions, 95.3% branches**.
+**302 tests, 96.8% lines, 92.7% functions, 88.8% branches**.
+
+### Where to see the results
+
+Locally, `npm test` prints each test and a per-file coverage table. For
+machine-readable output:
+
+```bash
+npm run test:report     # writes reports/junit.xml and reports/lcov.info
+genhtml reports/lcov.info -o reports/html   # optional browsable coverage
+```
+
+In a pull request, CI publishes them in the **Checks** tab as an annotated
+"Test results" check, in the **job summary** as a pass/fail table per
+operating system, and as downloadable **artifacts** for 14 days. Details in
+[docs/coding-task/test-strategy.md](docs/coding-task/test-strategy.md#where-to-see-the-results).
 
 Test strategy, including the four real bugs the suite caught during
 development, is in

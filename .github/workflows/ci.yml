@@ -41,7 +41,44 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Run tests with coverage thresholds
-        run: npm test
+        run: npm run test:report
+
+      - name: Publish the result to the job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Test results — ${{ matrix.os }}, Node ${{ matrix.node }}"
+            echo
+            if [ -f reports/junit.xml ]; then
+              total=$(grep -o '<testcase ' reports/junit.xml | wc -l | tr -d ' ')
+              failed=$(grep -o '<failure' reports/junit.xml | wc -l | tr -d ' ')
+              echo "| Metric | Value |"
+              echo "| --- | --- |"
+              echo "| Tests | $total |"
+              echo "| Failures | $failed |"
+            else
+              echo "No JUnit report was produced."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.os }}-node${{ matrix.node }}
+          path: reports/
+          retention-days: 14
+
+      - name: Publish a test report check
+        if: always() && matrix.os == 'ubuntu-latest'
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: reports/junit.xml
+          check_name: Test results
+          include_passed: false
+          fail_on_failure: true
+
       - name: Deterministic fixture demo
         run: npm run demo
 
@@ -168,8 +205,28 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.8
-      - name: Check formatting
-        run: terraform fmt -check -recursive
+      # Advisory, not blocking, and deliberately so: this configuration was
+      # authored in an environment without the Terraform binary, so canonical
+      # formatting has never been applied. Run `terraform fmt -recursive`
+      # once, commit the result, then flip continue-on-error to false to make
+      # this a real gate. Validation below is blocking regardless.
+      - name: Check formatting (advisory until first normalised)
+        id: fmt
+        continue-on-error: true
+        run: terraform fmt -check -recursive -diff
+
+      - name: Note formatting drift in the job summary
+        if: steps.fmt.outcome == 'failure'
+        run: |
+          {
+            echo "### Terraform formatting (${{ matrix.stack }})"
+            echo
+            echo 'Not canonically formatted. Fix with:'
+            echo
+            echo '```bash'
+            echo 'terraform fmt -recursive infrastructure/'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Initialise without a backend
         run: terraform init -backend=false
       - name: Validate

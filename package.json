@@ -20,6 +20,7 @@
     "check:tf": "node scripts/check-terraform.js",
     "check:docs": "node scripts/check-docs.js",
     "agent": "node src/agent/server.js",
-    "start:agent": "node src/agent/server.js"
+    "start:agent": "node src/agent/server.js",
+    "test:report": "node -e \"require('node:fs').mkdirSync('reports',{recursive:true})\" && node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=80 --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"scripts/**\" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=reports/junit.xml --test-reporter=lcov --test-reporter-destination=reports/lcov.info \"test/**/*.test.js\""
   }
 }
