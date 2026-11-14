@@ -73,6 +73,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build fleet assistant image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.agent
+          load: true
+          tags: vectorharbor/fleet-assistant:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Start the stack
         run: |
           docker compose up -d --wait --wait-timeout 120
@@ -92,6 +102,48 @@ jobs:
           echo "actual:   $actual"
           echo "expected: $expected"
           test "$actual" = "$expected"
+
+      - name: Verify the supervision invariant end to end
+        run: |
+          set -euo pipefail
+          A=http://localhost:8082
+
+          # The assistant drafts a proposal and nothing else happens.
+          PID=$(curl -fsS -X POST $A/agent/ask -H 'content-type: application/json' \
+            -d '{"message":"Review the fleet and recommend any maintenance."}' \
+            | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).proposals[0].proposalId")
+          test "$(curl -fsS $A/agent/fleet | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).workOrders.length")" = "0"
+
+          DIGEST=$(curl -fsS $A/agent/proposals/$PID | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).proposal.valuesDigest")
+
+          # The agent must not be able to approve its own proposal.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/agent/proposals/$PID/approve \
+            -H 'content-type: application/json' \
+            -d "{\"approver\":\"agent:fleet-assistant\",\"valuesDigest\":\"$DIGEST\"}")
+          test "$CODE" = "409"
+
+          # A human can, and only then does a work order exist.
+          TOKEN=$(curl -fsS -X POST $A/agent/proposals/$PID/approve -H 'content-type: application/json' \
+            -d "{\"approver\":\"ci-approver\",\"valuesDigest\":\"$DIGEST\"}" \
+            | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).approvalToken")
+          curl -fsS -X POST $A/agent/execute -H 'content-type: application/json' \
+            -d "{\"approvalToken\":\"$TOKEN\",\"actor\":\"ci-approver\"}" > /dev/null
+          test "$(curl -fsS $A/agent/fleet | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).workOrders.length")" = "1"
+
+          # The token must not be replayable.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST $A/agent/execute \
+            -H 'content-type: application/json' \
+            -d "{\"approvalToken\":\"$TOKEN\",\"actor\":\"ci-approver\"}")
+          test "$CODE" = "409"
+
+          # The ledger must verify and the invariant must hold.
+          curl -fsS $A/agent/audit/verify | node -e "
+            let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+              const v=JSON.parse(s);
+              if (!v.chain.valid) { console.error('audit chain broken'); process.exit(1); }
+              if (!v.supervision.holds) { console.error('supervision invariant breached'); process.exit(1); }
+              console.log('chain intact over '+v.chain.length+' entries; supervision holds');
+            })"
 
       - name: Dump logs on failure
         if: failure()

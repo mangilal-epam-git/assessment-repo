@@ -13,6 +13,8 @@
 | TLS | Optional | Required | Required |
 | WAF | On, permissive | Detection mode | Prevention mode |
 | Providers | Mocks | Mocks | **Certified feeds only** |
+| Fleet assistant | On, deterministic planner | On, real model | On, real model |
+| Inference key required | No | Yes | Yes |
 | Log retention | 14 days | 30 days | 90 days |
 | Deletion protection | Off | On | On |
 | Deploy trigger | Automatic on merge | Automatic on merge | Manual, approved |
@@ -93,6 +95,8 @@ a circuit breaker covers the common case at lower cost and complexity.
 | Item | Mechanism | Changeable without a deploy |
 | --- | --- | --- |
 | FX rates, default markup, quality floor | Parameter Store / App Configuration, hot-reloaded | **Yes** |
+| Inference API key | Secrets Manager / Key Vault, created empty by Terraform and set out of band | Yes, by rotation |
+| Model backend and model version | Task environment | No — a model change is a reviewed deployment, not a config tweak |
 | Provider endpoints | Task environment | No — requires a new task definition |
 | Resilience knobs (timeouts, attempts, concurrency) | Task environment | No |
 | Admin token | Secrets Manager / Key Vault | Yes, by rotation |
@@ -117,6 +121,8 @@ production.
 | 2 — Agent | Zero actions executed without a recorded approval | Audit query, zero tolerance |
 | | Approval median latency < 30 min | Proposal lifecycle metrics |
 | | Proposal acceptance rate > 50% | Quality proxy for the assistant |
+| | Injection corpus produces zero unapproved actions | Adversarial suite, run per model version |
+| | Safety suite passes identically on every model backend | `agent-supervision.test.js` against each configured backend |
 | 3 — Scale | Residency isolation proven per region | Automated residency assertions |
 | | Sustained 3 000 rps with p99 < 1 s | Load test against production-shaped staging |
 | | DR failover within 30 min RTO | Quarterly drill evidence |

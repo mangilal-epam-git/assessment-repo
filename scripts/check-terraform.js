@@ -20,12 +20,83 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'infrastructure');
 const problems = [];
 
-/** Removes comments and string literals so braces and identifiers can be counted. */
+/**
+ * Removes comments while leaving string and heredoc content intact.
+ *
+ * A naive regex cannot do this: Terraform is full of strings that contain
+ * comment-like sequences. `path_pattern { values = ["/agent/*"] }` opens a
+ * block comment as far as a regex is concerned, and silently ate 14 000
+ * characters of a module before this was written as a scanner.
+ *
+ * String bodies are kept because `"${var.thing}"` is a genuine reference.
+ *
+ * @param {string} source
+ * @returns {string}
+ */
 function strip(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*#.*$/gm, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+  let out = '';
+  let index = 0;
+  const length = source.length;
+
+  while (index < length) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    // Heredoc: <<TAG or <<-TAG, ending at a line containing only TAG.
+    if (char === '<' && next === '<') {
+      const heredoc = /^<<-?([A-Za-z_][A-Za-z0-9_]*)\r?\n/.exec(source.slice(index));
+      if (heredoc) {
+        const tag = heredoc[1];
+        const bodyStart = index + heredoc[0].length;
+        const terminator = new RegExp(`^[ \\t]*${tag}[ \\t]*$`, 'm');
+        const match = terminator.exec(source.slice(bodyStart));
+        const bodyEnd = match ? bodyStart + match.index + match[0].length : length;
+        out += source.slice(index, bodyEnd);
+        index = bodyEnd;
+        continue;
+      }
+    }
+
+    // Quoted string: copy verbatim, honouring backslash escapes.
+    if (char === '"') {
+      out += char;
+      index += 1;
+      while (index < length) {
+        if (source[index] === '\\') {
+          out += source.slice(index, index + 2);
+          index += 2;
+          continue;
+        }
+        out += source[index];
+        if (source[index] === '"') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    // Block comment.
+    if (char === '/' && next === '*') {
+      const end = source.indexOf('*/', index + 2);
+      index = end === -1 ? length : end + 2;
+      out += ' ';
+      continue;
+    }
+
+    // Line comment, either style.
+    if ((char === '/' && next === '/') || char === '#') {
+      const end = source.indexOf('\n', index);
+      index = end === -1 ? length : end;
+      continue;
+    }
+
+    out += char;
+    index += 1;
+  }
+
+  return out;
 }
 
 async function terraformDirectories(dir) {

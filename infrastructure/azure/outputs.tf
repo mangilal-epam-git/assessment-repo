@@ -43,6 +43,21 @@ output "managed_identity_client_id" {
   value       = azurerm_user_assigned_identity.app.client_id
 }
 
+output "agent_console_url" {
+  description = "Supervision console for the fleet assistant."
+  value       = var.deploy_agent ? "https://${module.agent_app[0].fqdn}/" : ""
+}
+
+output "agent_app_name" {
+  description = "Container App name of the fleet assistant, for `az containerapp revision restart`."
+  value       = var.deploy_agent ? "ca-${local.name_prefix}-agent" : ""
+}
+
+output "agent_model_secret_name" {
+  description = "Key Vault secret holding the inference API key. Empty when the backend needs no key."
+  value       = var.deploy_agent && local.agent_needs_model_key ? "model-api-key" : ""
+}
+
 output "deployment_summary" {
   description = "Human-readable summary of what was deployed."
   value = {
@@ -50,6 +65,8 @@ output "deployment_summary" {
     location          = var.location
     front_door        = var.enable_front_door
     mocks_deployed    = var.deploy_mock_providers
+    agent_deployed    = var.deploy_agent
+    agent_model       = var.deploy_agent ? "${var.agent_model_backend}/${var.agent_model_name != "" ? var.agent_model_name : "built-in"}" : "not deployed"
     zone_redundant    = var.environment == "prod"
     replica_range     = "${var.min_replicas}-${var.max_replicas}"
   }

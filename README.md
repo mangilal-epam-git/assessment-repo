@@ -268,16 +268,40 @@ brake and self-approve, and watch it refuse: no such tool exists, there is no
 credential it can use to approve itself, and the attempt is recorded in a
 hash-chained ledger you can verify from the page.
 
-To use a real model instead:
+### Which AI model it uses
 
-```bash
-MODEL_BACKEND=anthropic MODEL_API_KEY=sk-ant-... npm run agent
-MODEL_BACKEND=openai    MODEL_API_KEY=sk-...     npm run agent
-MODEL_BACKEND=ollama    MODEL_NAME=llama3.1      npm run agent   # local, no key
-```
+By default: **none**. The built-in planner (`deterministic-planner-1`) is
+rule-based, runs in-process, and needs no key, no network and no GPU. It
+surveys the fleet, ranks by fault severity, prices the remedy and writes an
+evidence-cited rationale.
 
-The safety properties are identical on every backend, which is the point.
-Full walkthrough: [docs/coding-task/agent-demo.md](docs/coding-task/agent-demo.md).
+That is a design position, not a placeholder. A demonstration of a safety
+property must not fail because a vendor is unreachable — and identical
+behaviour across planners is the clearest evidence that the guarantees come
+from the tool registry and the approval gate rather than from the model
+cooperating.
+
+To use a real model, set two environment variables:
+
+| Backend | Command | Notes |
+| --- | --- | --- |
+| Anthropic | `MODEL_BACKEND=anthropic MODEL_API_KEY=sk-ant-... MODEL_NAME=claude-sonnet-4-5 npm run agent` | Recommended for production |
+| OpenAI | `MODEL_BACKEND=openai MODEL_API_KEY=sk-... MODEL_NAME=gpt-4o-mini npm run agent` | Cheapest hosted option |
+| Azure OpenAI | `MODEL_BACKEND=azure-openai MODEL_API_KEY=... MODEL_NAME=<deployment> OPENAI_BASE_URL=https://<resource>.openai.azure.com npm run agent` | Keeps inference in your tenancy |
+| Ollama (local) | `ollama pull llama3.1` then `MODEL_BACKEND=ollama MODEL_NAME=llama3.1 npm run agent` | Open-source, no key, nothing leaves the machine |
+
+On Windows PowerShell set each with `$env:MODEL_BACKEND = "anthropic"` on its
+own line, then run `node src\agent\server.js`.
+
+Check what actually answered with `curl localhost:8082/readyz`. If a backend
+fails, the service falls back to the deterministic planner and says so in the
+reported model name — a substitution is never silent.
+
+The orchestration loop is hand-written; only inference is delegated, which is
+the line the brief draws. Model choice, cost per turn, data handling,
+evaluation and governance are in
+[docs/architecture/24-ai-model-strategy.md](docs/architecture/24-ai-model-strategy.md).
+Demo walkthrough: [docs/coding-task/agent-demo.md](docs/coding-task/agent-demo.md).
 
 ## Things worth trying
 
@@ -356,7 +380,26 @@ BASE_URL="$(terraform output -raw service_url)" npm --prefix ../.. run smoke
 
 Creates: VPC across 3 AZs with NAT and VPC endpoints, ALB, WAFv2, ECS Fargate
 with autoscaling, ECR with scanning, Secrets Manager, SSM Parameter Store,
-CloudWatch dashboard and seven alarms.
+CloudWatch dashboard and seven alarms — plus the fleet assistant behind the
+same load balancer on `/agent/*`, with its console on `/console`.
+
+The assistant's inference key is deliberately **not** in Terraform. The
+secret is created empty and set afterwards:
+
+```bash
+docker build -f ../Dockerfile.agent -t "$(terraform output -raw agent_repository_url):latest" ..
+docker push "$(terraform output -raw agent_repository_url):latest"
+
+# Only needed for a hosted backend; the deterministic planner needs no key.
+aws secretsmanager put-secret-value \
+  --secret-id "$(terraform output -raw agent_model_secret_name)" \
+  --secret-string 'sk-ant-...'
+
+aws ecs update-service --cluster "$(terraform output -raw ecs_cluster_name)" \
+  --service "$(terraform output -raw agent_service_name)" --force-new-deployment
+
+curl "$(terraform output -raw agent_console_url)"
+```
 
 ### Azure (fully specified alternative)
 
@@ -382,7 +425,20 @@ BASE_URL="$(terraform output -raw service_url)" npm --prefix ../.. run smoke
 Creates: VNet with a delegated subnet and NSG, Container Apps environment,
 Container Apps with KEDA scaling, Front Door Premium with WAF, Container
 Registry, Key Vault with managed identity, Log Analytics, Application
-Insights and alert rules.
+Insights and alert rules — plus the fleet assistant as its own Container App.
+
+```bash
+docker build -f ../../Dockerfile.agent -t "$LOGIN_SERVER/fleet-assistant:latest" ../..
+docker push "$LOGIN_SERVER/fleet-assistant:latest"
+
+# Only for a hosted backend.
+az keyvault secret set --vault-name "$(terraform output -raw key_vault_name)" \
+  --name model-api-key --value 'sk-...'
+
+az containerapp revision restart \
+  --name "$(terraform output -raw agent_app_name)" \
+  --resource-group "$(terraform output -raw resource_group_name)"
+```
 
 ### Validate without deploying
 
@@ -420,6 +476,20 @@ list with defaults in [`.env.example`](.env.example).
 | `SHUTDOWN_GRACE_MS` | `15000` | Graceful drain period |
 | `ADMIN_TOKEN` | — | Bearer token for config reload |
 | `FIXED_CLOCK` | — | Pin the clock for reproducible output |
+
+Fleet assistant (`src/agent/server.js`):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AGENT_PORT` | `8082` | Listen port |
+| `MODEL_BACKEND` | `deterministic` | `deterministic`, `anthropic`, `openai`, `azure-openai`, `ollama` |
+| `MODEL_NAME` | — | Model, or the Azure deployment name. Pin a version |
+| `MODEL_API_KEY` | — | Required for hosted backends; refused at boot if missing |
+| `MODEL_FALLBACK_ENABLED` | `true` | Degrade to the deterministic planner on failure |
+| `MODEL_MAX_TOKENS` | `2048` | Output cap per call; a direct cost control |
+| `PROPOSAL_TTL_MS` | `14400000` | How long a proposal lives before expiring unapproved |
+| `FOUR_EYES_THRESHOLD_MINOR` | `100000` | Above this, a second approver is required |
+| `AGENT_MAX_ITERATIONS` | `8` | Bound on the agent loop |
 
 ---
 
@@ -515,6 +585,9 @@ Requirement-by-requirement traceability is in
 | Tests fail on Windows with path errors | Run from a bash shell (Git Bash or WSL), or use `npm test` rather than the `make` targets |
 | `docker compose` not found | Docker Desktop not running, or you have the older `docker-compose` v1 — use `COMPOSE="docker-compose" make up` |
 | Terraform `Backend configuration changed` | Run `terraform init -reconfigure -backend-config=...` |
+| Agent console "Failed to fetch" | You are opening a saved HTML file, not the running service. Start it with `npm run agent` and open http://localhost:8082/ |
+| `MODEL_API_KEY is required` at boot | A hosted `MODEL_BACKEND` was set without a key. Either supply one or use `MODEL_BACKEND=deterministic` |
+| Assistant answers but the model reads `(fallback from ...)` | The configured backend failed; the deterministic planner answered. Check the key, the endpoint and outbound network |
 | Different numbers from the worked examples | `FIXED_CLOCK` is not set, so live time is used and the fixtures are stale. That is correct behaviour |
 
 ---

@@ -17,6 +17,7 @@ infrastructure/
 │       ├── network/             # VPC, subnets, NAT, VPC endpoints, flow logs
 │       ├── ecr/                 # image registry with scanning and lifecycle
 │       ├── service/             # ALB, ECS Fargate, IAM, autoscaling, config
+│       │   └── agent.tf         # fleet assistant: task, routing, model secret
 │       ├── waf/                 # WAFv2 web ACL, rate limits, logging
 │       └── observability/       # alarms, dashboard, log metric filters
 └── azure/
@@ -185,6 +186,34 @@ Verify:
 BASE_URL="$(terraform output -raw service_url)" npm --prefix ../.. run smoke
 ```
 
+#### The fleet assistant
+
+The assistant deploys behind the same load balancer on `/agent/*`, with the
+console on `/console`. Push its image alongside the others:
+
+```bash
+docker build -f ../Dockerfile.agent -t "$(terraform output -raw agent_repository_url):latest" ..
+docker push "$(terraform output -raw agent_repository_url):latest"
+```
+
+With `agent_model_backend = "deterministic"` that is all it needs: no key, no
+network, no model. For a hosted backend, set the key **after** apply, because
+Terraform deliberately never holds it:
+
+```bash
+aws secretsmanager put-secret-value \
+  --secret-id "$(terraform output -raw agent_model_secret_name)" \
+  --secret-string 'sk-ant-...'
+
+aws ecs update-service --cluster "$(terraform output -raw ecs_cluster_name)" \
+  --service "$(terraform output -raw agent_service_name)" --force-new-deployment
+
+curl "$(terraform output -raw agent_console_url)"
+```
+
+Model choice, cost per turn and the residency trade-offs are in
+[docs/architecture/24-ai-model-strategy.md](../docs/architecture/24-ai-model-strategy.md).
+
 ### Azure
 
 ```bash
@@ -224,6 +253,23 @@ Verify:
 BASE_URL="$(terraform output -raw service_url)" npm --prefix ../.. run smoke
 ```
 
+#### The fleet assistant
+
+```bash
+docker build -f ../../Dockerfile.agent -t "$LOGIN_SERVER/fleet-assistant:latest" ../..
+docker push "$LOGIN_SERVER/fleet-assistant:latest"
+
+# Only for a hosted backend; the deterministic planner needs no key.
+az keyvault secret set --vault-name "$(terraform output -raw key_vault_name)" \
+  --name model-api-key --value 'sk-...'
+
+az containerapp revision restart \
+  --name "$(terraform output -raw agent_app_name)" \
+  --resource-group "$(terraform output -raw resource_group_name)"
+
+curl "$(terraform output -raw agent_console_url)readyz"
+```
+
 ### Chicken-and-egg on the first apply
 
 Both stacks create the registry and the compute in one apply, so the first
@@ -234,7 +280,8 @@ apply references an image tag that does not exist yet. Two supported options:
 2. **Pre-seed the image.** Apply with `-target` on the registry module first,
    push the images, then apply the rest:
    ```bash
-   terraform apply -target=module.ecr_service -target=module.ecr_mock   # AWS
+   terraform apply -target=module.ecr_service -target=module.ecr_mock \
+     -target=module.ecr_agent                                           # AWS
    terraform apply -target=module.registry                              # Azure
    ```
    This is the recommended path for production.
@@ -274,6 +321,8 @@ explicitly, one at a time, if a production teardown is genuinely intended.
 | TLS | optional | required | required |
 | WAF | on | Detection mode | Prevention mode |
 | Mock providers | yes | yes | **no** — certified feeds only |
+| Fleet assistant | yes, deterministic planner | yes, real model | yes, real model |
+| Inference key needed | no | yes | yes |
 | Fargate capacity | Spot | Spot | On-demand |
 | Log retention | 14 d | 30 d | 90 d |
 | Deletion protection | off | on | on |

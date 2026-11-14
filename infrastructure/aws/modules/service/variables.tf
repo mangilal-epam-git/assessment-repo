@@ -126,3 +126,115 @@ variable "load_balancer_label" {
   type        = string
   default     = ""
 }
+
+# ---------------------------------------------------------------------------
+# Fleet assistant (supervised agent)
+# ---------------------------------------------------------------------------
+
+variable "deploy_agent" {
+  description = "Deploy the supervised fleet assistant alongside the best-offers service."
+  type        = bool
+  default     = false
+}
+
+variable "agent_image" {
+  description = "Container image for the fleet assistant."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_backend" {
+  description = "Inference backend: deterministic, anthropic, openai, azure-openai or ollama."
+  type        = string
+  default     = "deterministic"
+}
+
+variable "agent_model_name" {
+  description = "Model identifier, or the deployment name for Azure OpenAI."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_base_url" {
+  description = "Override the inference endpoint. Required for Azure OpenAI and for self-hosted inference."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_timeout_millis" {
+  description = "Per-call timeout for the inference endpoint."
+  type        = number
+  default     = 30000
+}
+
+variable "agent_model_max_tokens" {
+  description = "Upper bound on output tokens per model call; a direct cost control."
+  type        = number
+  default     = 2048
+}
+
+variable "agent_max_iterations" {
+  description = "Upper bound on tool-use iterations per turn."
+  type        = number
+  default     = 8
+}
+
+variable "agent_proposal_ttl_millis" {
+  description = "How long a proposal remains open before it expires unapproved."
+  type        = number
+  default     = 14400000
+}
+
+variable "agent_four_eyes_threshold_minor" {
+  description = "Value above which a proposal requires a second approver."
+  type        = number
+  default     = 100000
+}
+
+variable "agent_tenant_budget_minor" {
+  description = "Tenant spend ceiling re-checked at execution time."
+  type        = number
+  default     = 5000000
+}
+
+variable "agent_cpu" {
+  description = "Fargate CPU units for the assistant."
+  type        = number
+  default     = 512
+}
+
+variable "agent_memory" {
+  description = "Fargate memory in MiB for the assistant."
+  type        = number
+  default     = 1024
+}
+
+variable "agent_desired_count" {
+  description = "Baseline assistant task count."
+  type        = number
+  default     = 2
+}
+
+variable "agent_min_capacity" {
+  description = "Autoscaling minimum for the assistant."
+  type        = number
+  default     = 2
+}
+
+variable "agent_max_capacity" {
+  description = "Autoscaling maximum for the assistant."
+  type        = number
+  default     = 10
+}
+
+variable "agent_target_requests_per_task" {
+  description = "Autoscaling target in requests per target per minute. Agent turns take seconds, so this is far below the best-offers target."
+  type        = number
+  default     = 120
+}
+
+variable "agent_max_concurrent" {
+  description = "Concurrent turns a single task will accept before shedding."
+  type        = number
+  default     = 32
+}

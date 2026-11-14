@@ -19,3 +19,9 @@ log_retention_days    = 30
 enable_front_door = false
 
 alarm_email_subscriptions = ["platform-dev@vectorharbor.example"]
+
+# Fleet assistant: deterministic planner, no key required.
+deploy_agent        = true
+agent_model_backend = "deterministic"
+agent_min_replicas  = 1
+agent_max_replicas  = 2

@@ -26,3 +26,21 @@ waf_mode                  = "Prevention"
 waf_rate_limit_per_minute = 2000
 
 alarm_email_subscriptions = ["platform-oncall@vectorharbor.example"]
+
+# Fleet assistant on Azure OpenAI: inference stays in the Azure tenancy and
+# inside the EU data boundary, which is the main reason to prefer it here.
+deploy_agent         = true
+agent_model_backend  = "azure-openai"
+agent_model_name     = "gpt4o-eu"
+agent_model_base_url = "https://REPLACE-ME.openai.azure.com"
+
+agent_cpu          = 0.5
+agent_memory       = "1Gi"
+agent_min_replicas = 2
+agent_max_replicas = 10
+
+agent_proposal_ttl_millis       = 14400000
+agent_four_eyes_threshold_minor = 100000
+
+# The key is never in Terraform. After apply:
+#   az keyvault secret set --vault-name <key_vault_name> --name model-api-key --value '...'

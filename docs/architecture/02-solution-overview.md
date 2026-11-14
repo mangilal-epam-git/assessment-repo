@@ -65,10 +65,11 @@ flowchart TB
     INS[Insights service<br/>explainable aggregates]
   end
 
-  subgraph agent[Supervised agent]
+  subgraph agent["**Supervised agent** — CODED"]
     ORC[Agent orchestrator<br/>built in-house]
     TOOL[Tool registry<br/>allow-list + schemas]
     APPR[Approval service<br/>human gate]
+    LEDG[(Audit ledger<br/>hash-chained)]
   end
 
   subgraph platform[Cross-cutting]
@@ -108,8 +109,10 @@ flowchart TB
   OBS -.scrapes.-> core
 ```
 
-The bold container is the slice implemented in this repository. Everything
-else is designed here and not built.
+The bold containers are implemented in this repository: offer normalisation
+and ranking, and the supervised agent with its tool registry, approval gate,
+execution service and audit ledger. Everything else is designed here and not
+built.
 
 ### Container responsibilities
 
@@ -125,8 +128,8 @@ else is designed here and not built.
 | Telemetry ingestion | Duplicate, delayed, out-of-order events and identity conflicts | Hard, high-volume, and isolated from the transactional path |
 | Quality and provenance | Independent verification of quality claims; spoof detection | Must be independent of the provider making the claim |
 | Insights | Explainable aggregates with source references and attribution | Explainability is a product requirement, not a debug aid |
-| Agent orchestrator | Plans, calls allow-listed tools, produces proposals | Built in-house; turnkey agent products are prohibited |
-| Approval | Human gate before any spend or operational change | The single enforcement point for supervision |
+| **Agent orchestrator** | Plans, calls allow-listed tools, produces proposals | Built in-house; turnkey agent products are prohibited. Inference is pluggable ([ADR-0013](../adr/0013-agent-model-provider-abstraction.md)) |
+| **Approval** | Human gate before any spend or operational change | The single enforcement point for supervision. Mints the only credential that can cause an effect |
 | Audit ledger | Append-only record of every decision-relevant event | The evidentiary backbone demanded by the legal context |
 
 ## 2.3 Component view of the coded slice (C4 level 3)
@@ -168,6 +171,52 @@ Dependencies point inward: `rational.js` knows nothing about HTTP, and
 `app.js` knows nothing about FX. The ranking core is a pure function of
 `(rows, snapshot, now)`, which is what makes it exhaustively testable and
 reproducible from an audit record.
+
+## 2.3b Component view of the supervised agent
+
+```mermaid
+flowchart TB
+  subgraph svc[Fleet assistant service]
+    direction TB
+    AAPP[app.js<br/>routes, console, deadlines]
+    ORCH[orchestrator.js<br/>the loop, written by hand]
+    REG[tools/registry.js<br/>allow-list, classification,<br/>schema validation both ways]
+    TOOLS[tools/fleet-tools.js<br/>4 read + 1 propose]
+    PROP[proposals.js<br/>lifecycle, expiry, approval,<br/>single-use tokens]
+    EXEC[execution.js<br/>the only cause of effects]
+    AUD[audit.js<br/>append-only, hash-chained]
+    UI[ui.js<br/>supervision console]
+    subgraph models[model/]
+      ADPT[provider.js<br/>adapter interface + fallback]
+      DET[deterministic.js<br/>no model required]
+      ANT[anthropic.js]
+      OAI[openai.js / azure]
+      OLL[ollama.js]
+    end
+  end
+
+  HUMAN[Maintenance manager]
+  LLM[[Hosted or self-hosted model]]
+
+  AAPP --> ORCH --> ADPT
+  ADPT --> DET & ANT & OAI & OLL
+  ANT & OAI & OLL --> LLM
+  ORCH --> REG --> TOOLS
+  TOOLS -->|propose only| PROP
+  AAPP --> UI
+  HUMAN -->|approves specific values| PROP
+  PROP -->|single-use token| EXEC
+  ORCH -.cannot reach.-x EXEC
+  ORCH & PROP & EXEC --> AUD
+
+  style EXEC fill:#f8d7da,stroke:#721c24
+  style PROP fill:#fff3cd,stroke:#856404
+```
+
+The one edge that matters is the dashed one: there is no path from the
+orchestrator to the execution service. The agent holds no credential that can
+cause an effect, and the approval service is the only thing that can mint
+one.
 
 ## 2.4 Request walkthrough: `GET /best-offers`
 

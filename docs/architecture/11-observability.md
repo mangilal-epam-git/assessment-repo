@@ -106,6 +106,38 @@ reload means someone tried to change prices and did not. The service is safe
 (the previous snapshot keeps serving), but a human now believes a price change
 is live when it is not, and that gap is exactly where billing disputes start.
 
+### Metrics exposed by the fleet assistant
+
+| Metric | Type | Labels | Answers |
+| --- | --- | --- | --- |
+| `vh_agent_turns_total` | counter | outcome | Is the assistant being used, and does it complete? |
+| `vh_agent_proposals_created_total` | counter | — | Volume of proposals reaching humans |
+| `vh_agent_proposals_decided_total` | counter | outcome | **Approval rate** — the assistant's real quality metric |
+| `vh_agent_actions_executed_total` | counter | kind | Work actually carried out |
+| `vh_agent_executions_refused_total` | counter | code | Replayed tokens, budget breaches, forged tokens |
+| `vh_agent_tool_refusals_total` | counter | code | **Attempts to exceed the capability boundary** |
+| `vh_agent_in_flight_requests` | gauge | — | Saturation; turns are long and model-bound |
+| `vh_agent_rejected_load_total` | counter | — | Load shedding |
+
+Two of these deserve standing attention. `vh_agent_proposals_decided_total`
+by outcome gives the approval rate: an assistant whose proposals are declined
+more often than accepted is costing approvers attention rather than saving
+it, whatever a model benchmark says. And any non-zero
+`vh_agent_tool_refusals_total{code="EXECUTE_CLASS_FORBIDDEN"}` means
+something tried to reach an executing capability, which is either a defect or
+an attack and is worth a look either way.
+
+### Agent alerts
+
+| Alert | Condition | Severity | Why |
+| --- | --- | --- | --- |
+| Execution without approval | Supervision invariant breached, any occurrence | **Critical** | Zero tolerance; the central safety claim |
+| Audit chain broken | `verify()` returns invalid | **Critical** | Evidence integrity |
+| Tool refusal spike | `EXECUTE_CLASS_FORBIDDEN` above zero | High | Capability-boundary probe |
+| Model fallback engaged | `model.fallback.engaged` logged | Medium | Inference degraded; proposals are now rule-based |
+| Approval latency | Median time to decision above 30 min | Medium | The product promise is saved time |
+| Proposal expiry rate | More than 20% expiring unapproved | Medium | Nobody is reading the queue |
+
 ## 11.4 Audit evidence trail
 
 Observability answers "is it healthy". Audit answers "can we prove what we

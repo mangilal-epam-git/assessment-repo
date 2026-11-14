@@ -25,3 +25,11 @@ certificate_arn            = "" # HTTP only in dev
 allowed_ingress_cidrs = ["0.0.0.0/0"]
 
 alarm_email_subscriptions = ["platform-dev@vectorharbor.example"]
+
+# Fleet assistant. The deterministic planner needs no key, no network and no
+# model, so dev costs nothing extra to run.
+deploy_agent        = true
+agent_model_backend = "deterministic"
+agent_desired_count = 1
+agent_min_capacity  = 1
+agent_max_capacity  = 2

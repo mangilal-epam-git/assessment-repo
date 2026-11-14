@@ -106,10 +106,43 @@ would cost roughly $145.
 
 | Environment | Monthly | Annual |
 | --- | --- | --- |
-| Development | $78 | $936 |
-| Staging | $195 | $2 340 |
-| Production | $1 027 | $12 324 |
-| **Total** | **$1 300** | **$15 600** |
+| Development | $78 + $3 agent (deterministic) | $972 |
+| Staging | $195 + $80 agent + ~$200 inference | $5 700 |
+| Production | $1 027 + $80 agent + ~$1 980 inference | $37 044 |
+| **Total** | **$3 643** | **$43 716** |
+
+Inference is roughly 60% of the whole run cost at phase 3. That is the number
+to put in front of the customer before a model is chosen, not after.
+
+## 13.3b The fleet assistant
+
+The assistant adds two things: two more small Fargate tasks, and inference.
+
+| Line item | Derivation | Monthly |
+| --- | --- | --- |
+| Fargate (2 tasks, 0.5 vCPU / 1 GiB) | 2 × 0.5 × $0.04048 × 730 + memory | $45 |
+| ALB / WAF incremental | Shares the existing load balancer; agent traffic is low volume | $25 |
+| Secrets Manager (model key) | 1 secret | $0.40 |
+| Logs | Turn-level, low volume | $10 |
+| **Infrastructure subtotal** | | **≈ $80** |
+| Inference, deterministic planner | nil | **$0** |
+| Inference, Claude Sonnet class | 2 000 turns/day, ~8 600 tokens/turn | **≈ $1 980** |
+| Inference, GPT-4o-mini class | as above | ≈ $100 |
+| Inference, self-hosted Llama 70B | 2 × A10G always on | ≈ $1 100–2 200 |
+
+The headline for the customer: **inference costs more than the entire rest of
+the platform.** Production best-offers is about $1 030/month; a frontier model
+on this volume is roughly double that on its own.
+
+Three consequences. Model choice is a budget decision, not only a quality
+one. Routing routine triage to a small model and escalating only ambiguous
+cases is the first optimisation worth making, and it is a configuration
+change rather than a rewrite. And `MODEL_MAX_TOKENS`,
+`AGENT_MAX_ITERATIONS` and a per-tenant turn quota are real cost controls
+that are already wired through the Terraform.
+
+Full breakdown and the self-hosting crossover point are in
+[24 AI model strategy](24-ai-model-strategy.md#246-cost).
 
 ## 13.4 Azure comparison
 

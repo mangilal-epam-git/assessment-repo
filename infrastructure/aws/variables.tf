@@ -176,3 +176,81 @@ variable "log_level" {
     error_message = "log_level must be one of debug, info, warn or error."
   }
 }
+
+# ---------------------------------------------------------------------------
+# Fleet assistant (supervised agent)
+#
+# See docs/architecture/24-ai-model-strategy.md for how the backend is chosen
+# and what each model option implies for cost and data residency.
+# ---------------------------------------------------------------------------
+
+variable "deploy_agent" {
+  description = "Deploy the supervised fleet assistant behind the same load balancer."
+  type        = bool
+  default     = true
+}
+
+variable "agent_image" {
+  description = "Container image for the fleet assistant. Leave empty to use the ECR repository created here at the :latest tag."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_backend" {
+  description = "Inference backend. 'deterministic' needs no key, no network and no model, and is the safe default for a first deploy."
+  type        = string
+  default     = "deterministic"
+
+  validation {
+    condition     = contains(["deterministic", "anthropic", "openai", "azure-openai", "ollama"], var.agent_model_backend)
+    error_message = "agent_model_backend must be deterministic, anthropic, openai, azure-openai or ollama."
+  }
+}
+
+variable "agent_model_name" {
+  description = "Model identifier, or the deployment name for Azure OpenAI. Pin an explicit version; never a floating alias in production."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_base_url" {
+  description = "Override the inference endpoint. Required for Azure OpenAI and for self-hosted inference inside the VPC."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_max_tokens" {
+  description = "Upper bound on output tokens per model call. A direct cost control."
+  type        = number
+  default     = 2048
+}
+
+variable "agent_proposal_ttl_millis" {
+  description = "How long a proposal stays open before expiring unapproved. Silence must never approve."
+  type        = number
+  default     = 14400000
+}
+
+variable "agent_four_eyes_threshold_minor" {
+  description = "Value in minor units above which a proposal needs a second approver."
+  type        = number
+  default     = 100000
+}
+
+variable "agent_desired_count" {
+  description = "Baseline assistant task count."
+  type        = number
+  default     = 2
+}
+
+variable "agent_min_capacity" {
+  description = "Autoscaling minimum for the assistant."
+  type        = number
+  default     = 2
+}
+
+variable "agent_max_capacity" {
+  description = "Autoscaling maximum for the assistant."
+  type        = number
+  default     = 10
+}

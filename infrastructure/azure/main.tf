@@ -22,6 +22,11 @@ locals {
   service_image = var.service_image != "" ? var.service_image : "${module.registry.login_server}/best-offers:latest"
   mock_image    = var.mock_provider_image != "" ? var.mock_provider_image : "${module.registry.login_server}/mock-providers:latest"
 
+  agent_image    = var.agent_image != "" ? var.agent_image : "${module.registry.login_server}/fleet-assistant:latest"
+  # Hosted backends need a key; the deterministic planner and a self-hosted
+  # endpoint do not.
+  agent_needs_model_key = contains(["anthropic", "openai", "azure-openai"], var.agent_model_backend)
+
   telemetry1_url = var.deploy_mock_providers ? "https://${module.mock_app[0].fqdn}/provider/telemetry1" : var.provider_telemetry1_url
   telemetry2_url = var.deploy_mock_providers ? "https://${module.mock_app[0].fqdn}/provider/telemetry2" : var.provider_telemetry2_url
 
@@ -55,6 +60,14 @@ resource "terraform_data" "configuration_guard" {
     precondition {
       condition     = var.min_replicas <= var.max_replicas
       error_message = "min_replicas must not exceed max_replicas."
+    }
+    precondition {
+      condition     = !(var.deploy_agent && contains(["azure-openai", "ollama"], var.agent_model_backend) && var.agent_model_base_url == "")
+      error_message = "agent_model_base_url is required for the azure-openai and ollama backends."
+    }
+    precondition {
+      condition     = !(var.deploy_agent && var.agent_model_backend != "deterministic" && var.agent_model_name == "")
+      error_message = "agent_model_name must be set and version-pinned for a non-deterministic backend."
     }
   }
 }
@@ -169,6 +182,24 @@ resource "azurerm_key_vault_secret" "admin_token" {
 
   lifecycle {
     # Rotation is owned by the security runbook, not by an apply.
+    ignore_changes = [value]
+  }
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
+}
+
+# The inference key is created as a vault secret with a placeholder value and
+# set out of band, so the real key never appears in a plan, in state or in a
+# pipeline log.
+resource "azurerm_key_vault_secret" "model_api_key" {
+  count = var.deploy_agent && local.agent_needs_model_key ? 1 : 0
+
+  name         = "model-api-key"
+  value        = "REPLACE-ME"
+  key_vault_id = azurerm_key_vault.this.id
+  content_type = "inference-api-key"
+
+  lifecycle {
     ignore_changes = [value]
   }
 
@@ -309,6 +340,75 @@ module "app_alerts" {
   name_prefix                = local.name_prefix
   resource_group_name        = azurerm_resource_group.this.name
   container_app_id           = module.service_app.container_app_id
+  log_analytics_workspace_id = module.observability.workspace_id
+  action_group_id            = module.observability.action_group_id
+  tags                       = local.common_tags
+}
+
+module "agent_app" {
+  source = "./modules/container_app"
+  count  = var.deploy_agent ? 1 : 0
+
+  name                         = "ca-${local.name_prefix}-agent"
+  resource_group_name          = azurerm_resource_group.this.name
+  container_app_environment_id = azurerm_container_app_environment.this.id
+  identity_id                  = azurerm_user_assigned_identity.app.id
+  registry_server              = module.registry.login_server
+
+  image                           = local.agent_image
+  container_name                  = "fleet-assistant"
+  target_port                     = 8082
+  cpu                             = var.agent_cpu
+  memory                          = var.agent_memory
+  min_replicas                    = var.agent_min_replicas
+  max_replicas                    = var.agent_max_replicas
+  concurrent_requests_per_replica = var.agent_concurrent_requests_per_replica
+
+  external_ingress = true
+
+  health_probe_path    = "/healthz"
+  readiness_probe_path = "/readyz"
+
+  key_vault_secrets = var.deploy_agent && local.agent_needs_model_key ? {
+    "model-api-key" = azurerm_key_vault_secret.model_api_key[0].versionless_id
+  } : {}
+
+  secret_environment_variables = var.deploy_agent && local.agent_needs_model_key ? {
+    MODEL_API_KEY = "model-api-key"
+  } : {}
+
+  environment_variables = merge(
+    {
+      NODE_ENV                  = "production"
+      AGENT_PORT                = "8082"
+      AGENT_HOST                = "0.0.0.0"
+      LOG_LEVEL                 = var.log_level
+      MODEL_BACKEND             = var.agent_model_backend
+      MODEL_NAME                = var.agent_model_name
+      MODEL_FALLBACK_ENABLED    = "true"
+      PROPOSAL_TTL_MS           = tostring(var.agent_proposal_ttl_millis)
+      FOUR_EYES_THRESHOLD_MINOR = tostring(var.agent_four_eyes_threshold_minor)
+      SHUTDOWN_GRACE_MS         = "15000"
+    },
+    var.agent_model_base_url != "" ? {
+      OPENAI_BASE_URL    = var.agent_model_base_url
+      ANTHROPIC_BASE_URL = var.agent_model_base_url
+      OLLAMA_BASE_URL    = var.agent_model_base_url
+    } : {},
+  )
+
+  tags = local.common_tags
+
+  depends_on = [azurerm_role_assignment.acr_pull, azurerm_role_assignment.kv_secrets_user]
+}
+
+module "agent_alerts" {
+  source = "./modules/app_alerts"
+  count  = var.deploy_agent ? 1 : 0
+
+  name_prefix                = "${local.name_prefix}-agent"
+  resource_group_name        = azurerm_resource_group.this.name
+  container_app_id           = module.agent_app[0].container_app_id
   log_analytics_workspace_id = module.observability.workspace_id
   action_group_id            = module.observability.action_group_id
   tags                       = local.common_tags

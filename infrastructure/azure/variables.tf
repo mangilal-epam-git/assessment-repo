@@ -148,3 +148,87 @@ variable "alarm_email_subscriptions" {
   type        = list(string)
   default     = []
 }
+
+# ---------------------------------------------------------------------------
+# Fleet assistant (supervised agent)
+#
+# See docs/architecture/24-ai-model-strategy.md for the backend options and
+# what each implies for cost and data residency.
+# ---------------------------------------------------------------------------
+
+variable "deploy_agent" {
+  description = "Deploy the supervised fleet assistant."
+  type        = bool
+  default     = true
+}
+
+variable "agent_image" {
+  description = "Container image for the fleet assistant. Leave empty to use the registry created here."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_backend" {
+  description = "Inference backend. 'deterministic' needs no key, no network and no model."
+  type        = string
+  default     = "deterministic"
+
+  validation {
+    condition     = contains(["deterministic", "anthropic", "openai", "azure-openai", "ollama"], var.agent_model_backend)
+    error_message = "agent_model_backend must be deterministic, anthropic, openai, azure-openai or ollama."
+  }
+}
+
+variable "agent_model_name" {
+  description = "Model identifier, or the deployment name for Azure OpenAI. Pin an explicit version."
+  type        = string
+  default     = ""
+}
+
+variable "agent_model_base_url" {
+  description = "Inference endpoint. Required for azure-openai and ollama, e.g. https://my-resource.openai.azure.com"
+  type        = string
+  default     = ""
+}
+
+variable "agent_cpu" {
+  description = "vCPU per assistant replica."
+  type        = number
+  default     = 0.5
+}
+
+variable "agent_memory" {
+  description = "Memory per assistant replica."
+  type        = string
+  default     = "1Gi"
+}
+
+variable "agent_min_replicas" {
+  description = "Minimum assistant replicas."
+  type        = number
+  default     = 2
+}
+
+variable "agent_max_replicas" {
+  description = "Maximum assistant replicas."
+  type        = number
+  default     = 10
+}
+
+variable "agent_concurrent_requests_per_replica" {
+  description = "Concurrent turns per replica before KEDA scales out. Agent turns are long, so this is low."
+  type        = number
+  default     = 20
+}
+
+variable "agent_proposal_ttl_millis" {
+  description = "How long a proposal stays open before expiring unapproved."
+  type        = number
+  default     = 14400000
+}
+
+variable "agent_four_eyes_threshold_minor" {
+  description = "Value above which a proposal needs a second approver."
+  type        = number
+  default     = 100000
+}

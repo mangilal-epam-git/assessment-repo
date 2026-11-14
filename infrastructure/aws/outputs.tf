@@ -48,6 +48,36 @@ output "pricing_config_parameter_name" {
   value       = module.service.pricing_config_parameter_name
 }
 
+output "agent_console_url" {
+  description = "Supervision console for the fleet assistant."
+  value       = module.service.agent_console_url
+}
+
+output "agent_api_url" {
+  description = "Base URL of the fleet assistant API."
+  value       = module.service.agent_api_url
+}
+
+output "agent_service_name" {
+  description = "ECS service name of the fleet assistant, used to force a new deployment."
+  value       = module.service.agent_service_name
+}
+
+output "agent_repository_url" {
+  description = "ECR repository to push the fleet assistant image to."
+  value       = module.ecr_agent.repository_url
+}
+
+output "agent_model_secret_name" {
+  description = "Secrets Manager secret holding the inference API key. Empty when the backend needs no key. Set the value with `aws secretsmanager put-secret-value`."
+  value       = module.service.agent_model_secret_name
+}
+
+output "agent_log_group_name" {
+  description = "CloudWatch log group for the fleet assistant."
+  value       = module.service.agent_log_group_name
+}
+
 output "alarm_topic_arn" {
   description = "SNS topic that alarms publish to."
   value       = module.observability.alarm_topic_arn
@@ -65,6 +95,8 @@ output "deployment_summary" {
     region            = var.aws_region
     availability_zone = module.network.availability_zones
     mocks_deployed    = var.deploy_mock_providers
+    agent_deployed    = var.deploy_agent
+    agent_model       = var.deploy_agent ? "${var.agent_model_backend}/${var.agent_model_name != "" ? var.agent_model_name : "built-in"}" : "not deployed"
     tls_enabled       = var.certificate_arn != ""
     account_id        = data.aws_caller_identity.current.account_id
   }

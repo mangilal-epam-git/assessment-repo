@@ -55,6 +55,25 @@ so they understate production performance.
 | Cross-tenant data access | **0** | Security alerting; zero tolerance |
 | Rejected configuration reloads applied | **0** | `test/integration/config-reload.test.js` |
 
+## 20.4b Supervised agent
+
+| Target | Value | Verification |
+| --- | --- | --- |
+| Actions executed without a recorded approval | **0** | Supervision invariant, queryable from the ledger; asserted in `agent-supervision.test.js` |
+| Vehicle actuation capability present | **0 tools, any environment** | Structural test over the tool registry and `execution.js` |
+| Approval tokens accepted more than once | **0** | Single-use token test |
+| Proposals auto-approved by expiry | **0** | Expiry test: silence yields `EXPIRED`, never `APPROVED` |
+| Self-approval by the agent | **0** | Refused with `SELF_APPROVAL_FORBIDDEN` |
+| Audit chain integrity | 100% verifiable | Hash chain recomputed on demand from `/agent/audit/verify` |
+| Agent turn latency (deterministic planner) | p99 < 500 ms | Measured locally |
+| Agent turn latency (hosted model) | p95 < 15 s | Dominated by inference, not our compute |
+| Median approval latency | < 30 min | Proposal lifecycle metrics; phase-2 rollout gate |
+| Proposal approval rate | > 50% | Quality proxy for the assistant |
+| Service availability without a model backend | 100% | Deterministic fallback; `agent-model.test.js` |
+
+The first five are correctness invariants with zero tolerance, not
+reliability targets. One violation is an incident regardless of budget.
+
 ## 20.5 Security
 
 | Target | Value | Verification |

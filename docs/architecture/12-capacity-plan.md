@@ -114,6 +114,26 @@ where load shedding may engage. This is accepted and documented rather than
 solved with permanently over-provisioned capacity; the alternative costs
 roughly 3× the compute line for an event measured in hours per year.
 
+## 12.4b Fleet assistant sizing
+
+The assistant has a completely different shape from the ranking service: low
+request volume, very long per-request duration, and almost no CPU of its own.
+
+| Input | Value | Source |
+| --- | --- | --- |
+| Deterministic planner turn | ~20 ms end to end | Measured; four tool calls, no I/O |
+| Hosted-model turn | 4–12 s | Assumption: 4–6 model round trips at 1–2 s each |
+| Concurrency per task | 32 | `AGENT_MAX_CONCURRENT`; the limit is in-flight sockets, not CPU |
+| Effective throughput per task | ~5 turns/second deterministic, ~4 turns/minute with a hosted model | Derived |
+| Assumed demand | 2 000 turns/day, peaking at ~20 concurrent | Assumption: 20 pilot fleets, a handful of managers each |
+| Tasks at peak | 2 | 20 concurrent ÷ 32 per task, rounded up, with an availability floor of 2 |
+
+The planning conclusion is that **the assistant is bound by inference
+latency, not by our compute**. Scaling it means more concurrent sockets, not
+more CPU, which is why the autoscaling target is 120 requests per target per
+minute against 12 000 for the ranking service. Two tasks cover the modelled
+load with headroom to ten.
+
 ## 12.5 Other tiers
 
 | Component | Phase 3 load | Sizing basis |

@@ -16,6 +16,11 @@ If you have ten minutes, read
 they cover the launch priorities of price transparency and demonstrable data
 rights.
 
+If you are reviewing the AI part, read
+[24 AI model strategy](architecture/24-ai-model-strategy.md) for the model
+choices and deployment, and
+[Supervised agent demo](coding-task/agent-demo.md) to run it.
+
 If you are reviewing the coded slice, start at
 [Coding task: API contract](coding-task/api-contract.md) and
 [Worked examples](coding-task/worked-examples.md), which reproduce by hand
@@ -55,6 +60,7 @@ plainly what is built, what is designed, and what is neither.
 | [21 Requirements traceability](architecture/21-requirements-traceability.md) | Each brief requirement mapped to design, code and evidence |
 | [22 Assumptions and gaps](architecture/22-assumptions-and-gaps.md) | What is assumed, what is not implemented, and why |
 | [23 Boundaries and licensing](architecture/23-boundaries-and-licensing.md) | What is built vs mocked, and the open-source licensing position |
+| [24 AI model strategy](architecture/24-ai-model-strategy.md) | Which models, why, running locally, deploying to cloud, cost, evaluation, governance |
 
 ### Decision records
 

@@ -27,6 +27,7 @@ locals {
 
   service_image = var.service_image != "" ? var.service_image : "${module.ecr_service.repository_url}:latest"
   mock_image    = var.mock_provider_image != "" ? var.mock_provider_image : "${module.ecr_mock.repository_url}:latest"
+  agent_image   = var.agent_image != "" ? var.agent_image : "${module.ecr_agent.repository_url}:latest"
 
   # When the mocks are deployed they are reached over the internal service
   # discovery namespace; otherwise the real certified provider endpoints are used.
@@ -48,6 +49,16 @@ resource "terraform_data" "provider_endpoint_guard" {
     precondition {
       condition     = var.service_min_capacity <= var.service_desired_count && var.service_desired_count <= var.service_max_capacity
       error_message = "service_min_capacity <= service_desired_count <= service_max_capacity must hold."
+    }
+    precondition {
+      # Azure OpenAI and self-hosted inference are reached by an explicit
+      # endpoint; without it the task would start and then fail every turn.
+      condition     = !(var.deploy_agent && contains(["azure-openai", "ollama"], var.agent_model_backend) && var.agent_model_base_url == "")
+      error_message = "agent_model_base_url is required for the azure-openai and ollama backends."
+    }
+    precondition {
+      condition     = !(var.deploy_agent && var.agent_model_backend != "deterministic" && var.agent_model_name == "")
+      error_message = "agent_model_name must be set (and pinned to an explicit version) for a non-deterministic backend."
     }
   }
 }
@@ -76,6 +87,13 @@ module "ecr_mock" {
 
   repository_name = "${local.name_prefix}-mock-providers"
   immutable_tags  = false
+}
+
+module "ecr_agent" {
+  source = "./modules/ecr"
+
+  repository_name = "${local.name_prefix}-fleet-assistant"
+  immutable_tags  = var.environment != "dev"
 }
 
 module "observability" {
@@ -129,4 +147,17 @@ module "service" {
   mock_provider_image   = local.mock_image
   telemetry1_url        = local.telemetry1_url
   telemetry2_url        = local.telemetry2_url
+
+  # Supervised fleet assistant.
+  deploy_agent                    = var.deploy_agent
+  agent_image                     = local.agent_image
+  agent_model_backend             = var.agent_model_backend
+  agent_model_name                = var.agent_model_name
+  agent_model_base_url            = var.agent_model_base_url
+  agent_model_max_tokens          = var.agent_model_max_tokens
+  agent_proposal_ttl_millis       = var.agent_proposal_ttl_millis
+  agent_four_eyes_threshold_minor = var.agent_four_eyes_threshold_minor
+  agent_desired_count             = var.agent_desired_count
+  agent_min_capacity              = var.agent_min_capacity
+  agent_max_capacity              = var.agent_max_capacity
 }

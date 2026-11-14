@@ -124,6 +124,27 @@ for any new runtime dependency. The zero-dependency position means this
 policy currently has nothing to enforce against in the service, which is a
 side benefit of ADR-0003 that is easy to undervalue.
 
+### Models in use
+
+The implemented assistant supports four inference backends and ships with a
+deterministic planner that needs none. The orchestration loop, tool registry
+and approval gate are ours; only inference is delegated, which is exactly the
+line the brief draws. Details and the rationale for each option are in
+[24 AI model strategy](24-ai-model-strategy.md); the decision is
+[ADR-0013](../adr/0013-agent-model-provider-abstraction.md).
+
+| Backend | Licence position |
+| --- | --- |
+| Deterministic planner | Our code; no third-party licence |
+| Anthropic Claude | Commercial API; terms require zero retention and no training on our data |
+| OpenAI / Azure OpenAI | Commercial API; same contractual requirements |
+| Ollama (MIT) with Llama 3.1 | Ollama is MIT. Llama 3.1 is under the Llama Community Licence, which permits commercial use below 700 M monthly active users and imposes naming and acceptable-use terms — comfortably satisfied here, but it is **not** an OSI-approved licence and should be recorded as such |
+| Mistral / Apache-2.0 models | Fully permissive; the cleanest self-hosting option if the Llama terms are unwelcome |
+
+The Llama row is worth flagging to legal. "Open weights" is not the same as
+"open source", and a licence that caps users or restricts fields of use is a
+commercial agreement with a friendly name.
+
 ### Open-source models
 
 Open-source models are permitted for the assistant. The obligations that
