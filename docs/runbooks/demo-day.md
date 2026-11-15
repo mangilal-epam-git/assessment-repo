@@ -41,6 +41,7 @@ whole answer. Common cases:
 | --- | --- |
 | `model: unknown model …` | Use a dated identifier, e.g. `MODEL_NAME=claude-sonnet-4-5-20250929` |
 | `authentication_error` | Wrong or revoked key, or a Claude.ai session rather than an API key (`sk-ant-…`) |
+| `not scoped to a workspace` | An organisation-level key. Set `$env:ANTHROPIC_WORKSPACE_ID = "wrkspc_…"`, or create a workspace-scoped key |
 | `credit balance is too low` | No credit on the account |
 | nothing, request timed out | No outbound network, or a corporate proxy intercepting TLS |
 
@@ -93,6 +94,8 @@ cd "$HOME\Projects\assessment-repo"
 $env:MODEL_BACKEND = "anthropic"
 $env:MODEL_API_KEY = "sk-ant-..."
 $env:MODEL_NAME    = "claude-sonnet-4-5"
+# Only for an organisation-level key; a workspace-scoped key needs no header.
+$env:ANTHROPIC_WORKSPACE_ID = "wrkspc_..."
 node src\agent\server.js
 ```
 

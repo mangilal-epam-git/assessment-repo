@@ -395,6 +395,9 @@ module "agent_app" {
       ANTHROPIC_BASE_URL = var.agent_model_base_url
       OLLAMA_BASE_URL    = var.agent_model_base_url
     } : {},
+    var.agent_anthropic_workspace_id != "" ? {
+      ANTHROPIC_WORKSPACE_ID = var.agent_anthropic_workspace_id
+    } : {},
   )
 
   tags = local.common_tags

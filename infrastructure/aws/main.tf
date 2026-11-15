@@ -154,6 +154,7 @@ module "service" {
   agent_model_backend             = var.agent_model_backend
   agent_model_name                = var.agent_model_name
   agent_model_base_url            = var.agent_model_base_url
+  agent_anthropic_workspace_id    = var.agent_anthropic_workspace_id
   agent_model_max_tokens          = var.agent_model_max_tokens
   agent_proposal_ttl_millis       = var.agent_proposal_ttl_millis
   agent_four_eyes_threshold_minor = var.agent_four_eyes_threshold_minor

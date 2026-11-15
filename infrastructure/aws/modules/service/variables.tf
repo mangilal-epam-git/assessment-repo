@@ -161,6 +161,12 @@ variable "agent_model_base_url" {
   default     = ""
 }
 
+variable "agent_anthropic_workspace_id" {
+  description = "Anthropic workspace id. Required only for an organisation-level key, which is not bound to a workspace."
+  type        = string
+  default     = ""
+}
+
 variable "agent_model_timeout_millis" {
   description = "Per-call timeout for the inference endpoint."
   type        = number

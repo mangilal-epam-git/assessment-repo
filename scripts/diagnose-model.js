@@ -26,7 +26,8 @@ out('Environment as this process sees it');
 out('-----------------------------------');
 for (const key of [
   'MODEL_BACKEND', 'MODEL_NAME', 'MODEL_FALLBACK_ENABLED',
-  'ANTHROPIC_BASE_URL', 'OPENAI_BASE_URL', 'OLLAMA_BASE_URL', 'AZURE_OPENAI_API_VERSION',
+  'ANTHROPIC_BASE_URL', 'ANTHROPIC_WORKSPACE_ID',
+  'OPENAI_BASE_URL', 'OLLAMA_BASE_URL', 'AZURE_OPENAI_API_VERSION',
 ]) {
   out(`  ${key.padEnd(26)} ${process.env[key] ?? '(not set)'}`);
 }
@@ -118,6 +119,17 @@ try {
   out('    ENOTFOUND      the base URL is wrong');
   out();
   if (config.modelBackend === 'anthropic') {
+    if (/workspace/i.test(error.providerMessage ?? '')) {
+      out('  >> This key is an ORGANISATION-level key, which is not bound to a');
+      out('     workspace, so each request must name one. Either:');
+      out();
+      out('       PowerShell:  $env:ANTHROPIC_WORKSPACE_ID = "wrkspc_..."');
+      out();
+      out('     Find the id in the Anthropic Console under Settings then');
+      out('     Workspaces; it appears in the URL when a workspace is open.');
+      out('     Or create a workspace-scoped key instead, which needs no header.');
+      out();
+    }
     out('  If the model name is rejected, try a dated identifier, for example');
     out('    MODEL_NAME=claude-sonnet-4-5-20250929');
     out('  and confirm the key is an Anthropic API key (sk-ant-...), not a');

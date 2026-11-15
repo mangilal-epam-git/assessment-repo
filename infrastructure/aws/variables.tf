@@ -219,6 +219,12 @@ variable "agent_model_base_url" {
   default     = ""
 }
 
+variable "agent_anthropic_workspace_id" {
+  description = "Anthropic workspace id. Required only for an organisation-level key; a workspace-scoped key needs none."
+  type        = string
+  default     = ""
+}
+
 variable "agent_model_max_tokens" {
   description = "Upper bound on output tokens per model call. A direct cost control."
   type        = number

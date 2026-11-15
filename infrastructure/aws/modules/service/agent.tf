@@ -254,6 +254,9 @@ resource "aws_ecs_task_definition" "agent" {
           { name = "ANTHROPIC_BASE_URL", value = var.agent_model_base_url },
           { name = "OLLAMA_BASE_URL", value = var.agent_model_base_url },
         ] : [],
+        var.agent_anthropic_workspace_id != "" ? [
+          { name = "ANTHROPIC_WORKSPACE_ID", value = var.agent_anthropic_workspace_id },
+        ] : [],
       )
 
       secrets = local.agent_needs_model_key ? [

@@ -50,6 +50,9 @@ export function readAgentEnvironment(env = process.env) {
     modelFallbackEnabled: (env.MODEL_FALLBACK_ENABLED ?? 'true') !== 'false',
 
     anthropicBaseUrl: env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
+    // Required only for organisation-level keys, which are not bound to a
+    // workspace. A workspace-scoped key needs no header.
+    anthropicWorkspaceId: env.ANTHROPIC_WORKSPACE_ID || '',
     openaiBaseUrl: env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
     azureApiVersion: env.AZURE_OPENAI_API_VERSION || '2024-10-21',
     ollamaBaseUrl: env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434',

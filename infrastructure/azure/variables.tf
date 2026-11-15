@@ -191,6 +191,12 @@ variable "agent_model_base_url" {
   default     = ""
 }
 
+variable "agent_anthropic_workspace_id" {
+  description = "Anthropic workspace id. Required only for an organisation-level key."
+  type        = string
+  default     = ""
+}
+
 variable "agent_cpu" {
   description = "vCPU per assistant replica."
   type        = number

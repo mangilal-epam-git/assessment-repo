@@ -3,6 +3,11 @@
  *
  * Plain HTTP against the public API shape; no SDK, so there is no dependency
  * and no hidden retry or telemetry behaviour we did not choose.
+ *
+ * Organisation-level keys are not scoped to a workspace and must name one
+ * per request via `anthropic-workspace-id`; workspace-scoped keys carry it
+ * implicitly. Set ANTHROPIC_WORKSPACE_ID for the former, omit it for the
+ * latter.
  */
 
 import { postJson, parseArguments } from './provider.js';
@@ -48,6 +53,9 @@ export function createAnthropicAdapter(config) {
             'content-type': 'application/json',
             'x-api-key': config.modelApiKey,
             'anthropic-version': '2023-06-01',
+            ...(config.anthropicWorkspaceId
+              ? { 'anthropic-workspace-id': config.anthropicWorkspaceId }
+              : {}),
           },
           body: JSON.stringify(body),
         },

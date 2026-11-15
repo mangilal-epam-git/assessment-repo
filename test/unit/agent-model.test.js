@@ -331,3 +331,24 @@ test('a provider message cannot become a data-leak channel', async () => {
   assert.equal(extractProviderMessage(''), undefined);
   assert.equal(extractProviderMessage(undefined), undefined);
 });
+
+test('an organisation-level key sends the workspace header; a scoped key does not', async (t) => {
+  // Anthropic rejects an org-level key with HTTP 400 unless the request
+  // names a workspace. A workspace-scoped key carries it implicitly, so the
+  // header must be absent rather than empty.
+  const server = await stub(() => ({ payload: { content: [{ type: 'text', text: 'ok' }] } }));
+  t.after(() => server.close());
+
+  const withWorkspace = createModelAdapter({
+    ...baseConfig,
+    modelBackend: 'anthropic',
+    anthropicBaseUrl: server.url,
+    anthropicWorkspaceId: 'wrkspc_01ABCDEF',
+  });
+  await withWorkspace.complete(request);
+  assert.equal(server.received[0].headers['anthropic-workspace-id'], 'wrkspc_01ABCDEF');
+
+  const scoped = createModelAdapter({ ...baseConfig, modelBackend: 'anthropic', anthropicBaseUrl: server.url });
+  await scoped.complete(request);
+  assert.equal(server.received[1].headers['anthropic-workspace-id'], undefined);
+});

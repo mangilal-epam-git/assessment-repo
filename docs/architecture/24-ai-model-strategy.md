@@ -96,6 +96,10 @@ Open http://localhost:8082/. No key, no network, no model.
 # Anthropic
 MODEL_BACKEND=anthropic MODEL_API_KEY=sk-ant-... MODEL_NAME=claude-sonnet-4-5 npm run agent
 
+# Anthropic with an organisation-level key, which must name a workspace
+MODEL_BACKEND=anthropic MODEL_API_KEY=sk-ant-... MODEL_NAME=claude-sonnet-4-5 \
+  ANTHROPIC_WORKSPACE_ID=wrkspc_... npm run agent
+
 # OpenAI
 MODEL_BACKEND=openai MODEL_API_KEY=sk-... MODEL_NAME=gpt-4o-mini npm run agent
 

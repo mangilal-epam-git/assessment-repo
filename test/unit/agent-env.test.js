@@ -83,3 +83,11 @@ test('the egress policy cannot be switched off in production', () => {
   // Permitted outside production, for a deliberate local experiment.
   assert.equal(readAgentEnvironment({ MODEL_EGRESS_POLICY_ENABLED: 'false' }).modelEgressPolicyEnabled, false);
 });
+
+test('the Anthropic workspace id is optional and defaults to empty', () => {
+  assert.equal(readAgentEnvironment({}).anthropicWorkspaceId, '');
+  assert.equal(
+    readAgentEnvironment({ ANTHROPIC_WORKSPACE_ID: 'wrkspc_01ABC' }).anthropicWorkspaceId,
+    'wrkspc_01ABC',
+  );
+});

@@ -534,6 +534,7 @@ Fleet assistant (`src/agent/server.js`):
 | `MODEL_BACKEND` | `deterministic` | `deterministic`, `anthropic`, `openai`, `azure-openai`, `ollama` |
 | `MODEL_NAME` | — | Model, or the Azure deployment name. Pin a version |
 | `MODEL_API_KEY` | — | Required for hosted backends; refused at boot if missing |
+| `ANTHROPIC_WORKSPACE_ID` | — | Only for an organisation-level Anthropic key, which is not bound to a workspace |
 | `MODEL_FALLBACK_ENABLED` | `true` | Degrade to the deterministic planner on failure |
 | `MODEL_EGRESS_POLICY_ENABLED` | `true` | Classify and block outbound model payloads. Cannot be `false` in production |
 | `MODEL_PERMITTED_DATA_CLASSES` | `OPERATIONAL,VEHICLE_ID` | What may cross the boundary. `SECRET` and `PAYMENT` are never permittable |
