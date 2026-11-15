@@ -23,6 +23,7 @@ import { ExecutionService } from './execution.js';
 import { ToolRegistry } from './tools/registry.js';
 import { createFleetTools } from './tools/fleet-tools.js';
 import { createModelAdapter, withDeterministicFallback } from './model/provider.js';
+import { withEgressPolicy } from './model/egress-policy.js';
 import { AgentOrchestrator } from './orchestrator.js';
 import { createAgentApp } from './app.js';
 
@@ -57,7 +58,18 @@ export async function startAgentServer({ env = process.env } = {}) {
   const registry = new ToolRegistry();
   for (const tool of createFleetTools({ fleet, proposals })) registry.register(tool);
 
-  const model = withDeterministicFallback(createModelAdapter(config, logger), {
+  // Order matters. The egress policy sits closest to the network so nothing
+  // bypasses it, and the fallback sits outside it so a blocked call degrades
+  // to local processing rather than failing the turn. A block is recorded as
+  // a policy violation either way; it is never silent.
+  const guarded = withEgressPolicy(createModelAdapter(config, logger), {
+    permittedClasses: config.modelPermittedDataClasses,
+    logger,
+    audit,
+    metrics,
+    enabled: config.modelEgressPolicyEnabled,
+  });
+  const model = withDeterministicFallback(guarded, {
     logger,
     enabled: config.modelFallbackEnabled,
   });
@@ -122,6 +134,9 @@ export async function startAgentServer({ env = process.env } = {}) {
     modelBackend: model.name,
     model: model.model,
     tools: registry.forAgent().map((tool) => `${tool.name}:${tool.classification}`),
+    egressPolicy: config.modelEgressPolicyEnabled
+      ? config.modelPermittedDataClasses.join(',')
+      : 'disabled',
     note: 'No execute-class tool is bindable by the agent; vehicle actuation does not exist.',
   });
 

@@ -24,3 +24,4 @@ time is part of the value.
 | [0011](0011-multi-tenancy-isolation.md) | Four-layer tenant isolation | Accepted |
 | [0012](0012-payment-provider-abstraction.md) | Payment provider abstraction | Accepted |
 | [0013](0013-agent-model-provider-abstraction.md) | Pluggable model backend with a deterministic default | Accepted |
+| [0014](0014-model-egress-data-classification.md) | Classify and block data at the model egress boundary | Accepted |

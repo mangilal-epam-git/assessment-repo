@@ -535,6 +535,8 @@ Fleet assistant (`src/agent/server.js`):
 | `MODEL_NAME` | — | Model, or the Azure deployment name. Pin a version |
 | `MODEL_API_KEY` | — | Required for hosted backends; refused at boot if missing |
 | `MODEL_FALLBACK_ENABLED` | `true` | Degrade to the deterministic planner on failure |
+| `MODEL_EGRESS_POLICY_ENABLED` | `true` | Classify and block outbound model payloads. Cannot be `false` in production |
+| `MODEL_PERMITTED_DATA_CLASSES` | `OPERATIONAL,VEHICLE_ID` | What may cross the boundary. `SECRET` and `PAYMENT` are never permittable |
 | `MODEL_MAX_TOKENS` | `2048` | Output cap per call; a direct cost control |
 | `PROPOSAL_TTL_MS` | `14400000` | How long a proposal lives before expiring unapproved |
 | `FOUR_EYES_THRESHOLD_MINOR` | `100000` | Above this, a second approver is required |
@@ -599,6 +601,7 @@ Fleet assistant (`src/agent/server.js`):
 | Partial results are HTTP 200, not an error | Three of five products with reasons beats a 500 | [api-contract](docs/coding-task/api-contract.md) |
 | Agents propose; humans approve; no actuation code exists | A prompt is a request; absent capability is a constraint | [0010](docs/adr/0010-agent-tool-allowlisting.md) |
 | The agent's default planner needs no model at all | A safety demonstration must not depend on a vendor being reachable | [0013](docs/adr/0013-agent-model-provider-abstraction.md) |
+| Outbound model payloads are classified and blocked, failing closed | Minimisation at source is the real control; this is the backstop for when it is wrong | [0014](docs/adr/0014-model-egress-data-classification.md) |
 
 ---
 

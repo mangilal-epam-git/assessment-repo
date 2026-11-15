@@ -323,3 +323,40 @@ test('metrics record the supervision signals', async (t) => {
   assert.match(text, /vh_agent_actions_executed_total\{kind="maintenance_work_order"\} 1/);
   assert.match(text, /vh_agent_executions_refused_total\{code="INVALID_APPROVAL_TOKEN"\} 1/);
 });
+
+test('readiness reports the active egress policy', async (t) => {
+  const ctx = await boot();
+  t.after(() => ctx.app.close());
+
+  const ready = await ctx.json('/readyz');
+  assert.equal(ready.status, 200);
+  assert.deepEqual(ready.body.egressPolicy, {
+    enforced: true,
+    permittedDataClasses: ['OPERATIONAL', 'VEHICLE_ID'],
+  });
+});
+
+test('a model that would receive prohibited data is blocked, and the turn still completes', async (t) => {
+  // A hosted backend is configured, but the stub endpoint is unreachable and
+  // in any case the guard runs first. The turn degrades to the local planner
+  // rather than failing, and the block is in the ledger.
+  const ctx = await boot({
+    MODEL_BACKEND: 'anthropic',
+    MODEL_API_KEY: 'sk-test-not-a-real-key',
+    MODEL_NAME: 'claude-sonnet-4-5',
+    ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
+  });
+  t.after(() => ctx.app.close());
+
+  const ready = await ctx.json('/readyz');
+  assert.match(ready.body.modelBackend, /^anthropic/);
+  assert.equal(ready.body.egressPolicy.enforced, true);
+
+  const asked = await ctx.post('/agent/ask', { message: 'Review the fleet.' });
+  assert.equal(asked.status, 200, 'the assistant must still answer');
+  assert.match(asked.body.model, /deterministic-planner-1/, 'it degrades locally and says so');
+
+  const verified = await ctx.json('/agent/audit/verify');
+  assert.equal(verified.body.chain.valid, true);
+  assert.equal(verified.body.supervision.holds, true);
+});

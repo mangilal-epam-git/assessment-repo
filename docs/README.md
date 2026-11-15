@@ -66,6 +66,7 @@ plainly what is built, what is designed, and what is neither.
 | [22 Assumptions and gaps](architecture/22-assumptions-and-gaps.md) | What is assumed, what is not implemented, and why |
 | [23 Boundaries and licensing](architecture/23-boundaries-and-licensing.md) | What is built vs mocked, and the open-source licensing position |
 | [24 AI model strategy](architecture/24-ai-model-strategy.md) | Which models, why, running locally, deploying to cloud, cost, evaluation, governance |
+| [25 Model data governance](architecture/25-model-data-governance.md) | The approval gate: data classification, rights, region, provider terms, enforcement, revocation |
 
 ### Decision records
 
@@ -84,6 +85,7 @@ plainly what is built, what is designed, and what is neither.
 | [0011](adr/0011-multi-tenancy-isolation.md) | Tenant isolation model and its enforcement points |
 | [0012](adr/0012-payment-provider-abstraction.md) | Payment service provider abstraction and the Bitcoin position |
 | [0013](adr/0013-agent-model-provider-abstraction.md) | Pluggable model backend with a deterministic default |
+| [0014](adr/0014-model-egress-data-classification.md) | Classify and block data at the model egress boundary |
 
 ### Coding task
 

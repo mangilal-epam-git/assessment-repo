@@ -49,3 +49,37 @@ test('a pinned clock is refused in production', () => {
     /FIXED_CLOCK must not be set when NODE_ENV is production/,
   );
 });
+
+test('the egress policy defaults to enforced and narrow', () => {
+  const config = readAgentEnvironment({});
+  assert.equal(config.modelEgressPolicyEnabled, true);
+  assert.deepEqual(config.modelPermittedDataClasses, ['OPERATIONAL', 'VEHICLE_ID']);
+});
+
+test('the permitted data classes can be widened, but not to the unauthorisable', () => {
+  const widened = readAgentEnvironment({ MODEL_PERMITTED_DATA_CLASSES: 'OPERATIONAL,vehicle_id,VIN' });
+  assert.deepEqual(widened.modelPermittedDataClasses, ['OPERATIONAL', 'VEHICLE_ID', 'VIN']);
+
+  // Someone trying to authorise the unauthorisable stops the service.
+  assert.throws(
+    () => readAgentEnvironment({ MODEL_PERMITTED_DATA_CLASSES: 'OPERATIONAL,SECRET' }),
+    /must never include SECRET/,
+  );
+  assert.throws(
+    () => readAgentEnvironment({ MODEL_PERMITTED_DATA_CLASSES: 'OPERATIONAL,PAYMENT' }),
+    /must never include PAYMENT/,
+  );
+  assert.throws(
+    () => readAgentEnvironment({ MODEL_PERMITTED_DATA_CLASSES: 'OPERATIONAL,EVERYTHING' }),
+    /unknown class "EVERYTHING"/,
+  );
+});
+
+test('the egress policy cannot be switched off in production', () => {
+  assert.throws(
+    () => readAgentEnvironment({ NODE_ENV: 'production', MODEL_EGRESS_POLICY_ENABLED: 'false' }),
+    /MODEL_EGRESS_POLICY_ENABLED must not be false when NODE_ENV is production/,
+  );
+  // Permitted outside production, for a deliberate local experiment.
+  assert.equal(readAgentEnvironment({ MODEL_EGRESS_POLICY_ENABLED: 'false' }).modelEgressPolicyEnabled, false);
+});

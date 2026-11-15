@@ -28,7 +28,7 @@ evidence exists. Status is deliberately blunt:
 | F14 | Tenant isolation, driver-location privacy, geofenced residency, revocable analytics/AI rights | Designed | [8.3](08-security.md#83-authorisation-model), [10](10-privacy-consent-residency.md), [ADR-0011](../adr/0011-multi-tenancy-isolation.md) | Four isolation layers; purpose-scoped consent |
 | F15 | Agents propose using allow-listed tools; explicit human approval before spend or operational change; no remote actuation | **Coded** | `src/agent/`, [7](07-agentic-workflows.md), [ADR-0010](../adr/0010-agent-tool-allowlisting.md) | `test/integration/agent-supervision.test.js`: self-approval, token replay, expiry, injection and actuation attempts all refused |
 | F16 | Explainable insights: source events, quality, freshness, model/version attribution | Partial | Response carries provider, counts, quality ratio, `observedAt`, effective expiry, versions, rejections (coded); [5.4](05-data-quality-and-provenance.md#54-explainability-of-insights) | Golden test asserts every field |
-| F17 | Detect spoofed telemetry; prevent low-quality feeds appearing artificially cheap | Partial | Quality floor and per-valid-event normalisation (coded); [5.2](05-data-quality-and-provenance.md#52-four-independent-verification-layers) for spoof detection | Test: a cheaper bundle with 0.80 quality is excluded |
+| F17 | Detect spoofed telemetry; prevent low-quality feeds appearing artificially cheap | Partial | Quality floor and per-valid-event normalisation (coded); [5.2](05-data-quality-and-provenance.md#52-four-independent-verification-layers) for spoof detection; evidence package and separation of duties in [5.6](05-data-quality-and-provenance.md#56-the-evidence-package)–[5.8](05-data-quality-and-provenance.md#58-contract-validity-is-not-real-world-accuracy) | Test: a cheaper bundle with 0.80 quality is excluded. Contract validity and real-world accuracy distinguished explicitly |
 
 ## 21.2 Non-functional requirements
 
@@ -50,6 +50,8 @@ evidence exists. Status is deliberately blunt:
 | N14 | Dedicated disaster recovery plan | Designed | [14](14-disaster-recovery.md) | Tiered RTO/RPO, procedures, drills |
 | N15 | ADR set | Designed | [adr/](../adr/) | 12 ADRs |
 | N16 | Diagrams | Designed | Throughout | Mermaid, version-controlled |
+| N17 | Provider quality claims independently verified, with an accountable owner and an independent reviewer | Designed (**proposed**) | [5.6](05-data-quality-and-provenance.md#56-the-evidence-package), [5.7](05-data-quality-and-provenance.md#57-who-decides-and-who-checks) | Five-claim evidence package; providers never self-certify |
+| N18 | Approval gate before operational data reaches an external model | **Coded + designed** | [25](25-model-data-governance.md), [ADR-0014](../adr/0014-model-egress-data-classification.md) | Egress policy enforced in code; `test/unit/agent-egress-policy.test.js` |
 
 ## 21.3 Coding sub-task requirements
 
@@ -105,10 +107,10 @@ Every requirement from the coding brief, with the test that proves it.
 
 | Status | Count |
 | --- | --- |
-| Coded with tests | 46 |
+| Coded with tests | 47 |
 | Implemented in IaC | 8 |
 | Partial (coded in part, remainder designed) | 6 |
-| Designed only | 17 |
+| Designed only | 18 |
 
 The supervised agent workflow (F15) moved from *designed* to *coded* after
 the initial submission: `src/agent/` implements the tool registry, proposal

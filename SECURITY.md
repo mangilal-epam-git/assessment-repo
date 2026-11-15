@@ -88,6 +88,7 @@ is a reviewable change like any other.
 - Response bodies from providers are size-capped and never echoed back to callers; error bodies carry a stable code, a safe message and a request id only.
 - Structured logs are redacted by a deny-list covering credentials, payment identifiers, vehicle identifiers and geolocation.
 - The admin reload endpoint requires a bearer token compared in constant time.
+- Outbound model payloads are classified before leaving the boundary; precise location, driver identity, VINs, secrets and payment data block the call rather than being sent. Secrets and payment data cannot be permitted by configuration.
 - Per-attempt timeouts, a bounded retry budget, a per-request deadline and concurrency shedding bound the blast radius of a slow or hostile upstream.
 
 ## Known limitations in this slice

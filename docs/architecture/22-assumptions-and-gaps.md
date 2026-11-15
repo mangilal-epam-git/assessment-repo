@@ -49,6 +49,8 @@ is a change, and it is better raised now than discovered during a launch.
 | O2 | Pricing changes are made by trained operators via the governed workflow | Hot reload is powerful; it needs process discipline around it |
 | O3 | The standby region may be another EU region | A single-region jurisdiction would make the DR plan materially harder |
 | O4 | Providers will act on rejection feedback | The certification model relies on it; the standing score exists for when they do not |
+| O5 | A named data-governance owner will exist to accept or reject certifications | The separation of duties in [5.7](05-data-quality-and-provenance.md#57-who-decides-and-who-checks) has no meaning without one |
+| O6 | A model data-use policy will be approved before any hosted backend is used in production | Until then the conservative default stands and the assistant runs locally |
 
 ## 22.2 Not implemented, and why
 
@@ -91,6 +93,7 @@ Honest limitations of what *is* built:
 | --- | --- | --- |
 | Single shared admin token | A coarse credential for a sensitive endpoint | Workload identity with short-lived credentials and per-operator attribution |
 | Quality claims trusted after validation | As the brief directs, but a real exposure in production | Implement [layer 1 recount](05-data-quality-and-provenance.md#layer-1--deterministic-recount) before any live provider |
+| Egress guard is pattern matching, not semantic understanding | A sufficiently unusual encoding of a coordinate would pass | It is a backstop; minimisation at source remains the control that matters ([ADR-0014](../adr/0014-model-egress-data-classification.md)) |
 | No circuit breaker across requests | A persistently failing provider is retried on every request | Add a per-provider breaker; current bounded retries limit the damage |
 | No distributed tracing backend | `x-request-id` propagates, but no span export | Add OpenTelemetry export; the header plumbing is already there |
 | No rate limiting inside the service | Relies on edge WAF and concurrency shedding | Add per-tenant quotas when authentication lands |

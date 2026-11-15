@@ -6,6 +6,7 @@
  */
 
 import { MODEL_BACKENDS } from './model/provider.js';
+import { DataClass, DEFAULT_PERMITTED_CLASSES, NEVER_PERMITTED } from './model/egress-policy.js';
 
 /** @param {NodeJS.ProcessEnv} env */
 export function readAgentEnvironment(env = process.env) {
@@ -63,6 +64,15 @@ export function readAgentEnvironment(env = process.env) {
     maxConcurrentRequests: integer('AGENT_MAX_CONCURRENT', 32, { min: 1, max: 10_000 }),
     shutdownGraceMillis: integer('SHUTDOWN_GRACE_MS', 15_000, { min: 0, max: 120_000 }),
 
+    // Which data classes may cross the boundary to an external model.
+    // Narrow by default and never configurable to include secrets or payment
+    // data; see docs/architecture/25-model-data-governance.md.
+    modelEgressPolicyEnabled: (env.MODEL_EGRESS_POLICY_ENABLED ?? 'true') !== 'false',
+    modelPermittedDataClasses: (env.MODEL_PERMITTED_DATA_CLASSES || DEFAULT_PERMITTED_CLASSES.join(','))
+      .split(',')
+      .map((value) => value.trim().toUpperCase())
+      .filter(Boolean),
+
     bestOffersUrl: env.BEST_OFFERS_URL || '',
     fixedClock: env.FIXED_CLOCK || '',
   };
@@ -79,6 +89,19 @@ export function readAgentEnvironment(env = process.env) {
   }
   if (config.fixedClock !== '' && config.nodeEnv === 'production') {
     problems.push('FIXED_CLOCK must not be set when NODE_ENV is production');
+  }
+  for (const dataClass of config.modelPermittedDataClasses) {
+    if (!Object.values(DataClass).includes(dataClass)) {
+      problems.push(`MODEL_PERMITTED_DATA_CLASSES contains unknown class "${dataClass}"`);
+    }
+    if (NEVER_PERMITTED.includes(dataClass)) {
+      // Not a typo to tolerate: someone has tried to authorise the
+      // unauthorisable, and the service must not start.
+      problems.push(`MODEL_PERMITTED_DATA_CLASSES must never include ${dataClass}`);
+    }
+  }
+  if (!config.modelEgressPolicyEnabled && config.nodeEnv === 'production') {
+    problems.push('MODEL_EGRESS_POLICY_ENABLED must not be false when NODE_ENV is production');
   }
 
   if (problems.length > 0) {

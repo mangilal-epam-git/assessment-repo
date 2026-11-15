@@ -147,6 +147,9 @@ export function createAgentApp({
           status: ready ? 'ready' : 'not-ready',
           modelBackend: orchestrator.model.name,
           model: orchestrator.model.model,
+          egressPolicy: config.modelEgressPolicyEnabled
+            ? { enforced: true, permittedDataClasses: config.modelPermittedDataClasses }
+            : { enforced: false },
         });
         return;
       }

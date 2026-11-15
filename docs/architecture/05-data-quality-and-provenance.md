@@ -1,5 +1,14 @@
 # 5. Data quality and provenance
 
+> **Status: proposed.** The controls in this document are a proposal for
+> discussion, not requirements the customer has approved. The brief does not
+> name a certifying organisation and does not prescribe a complete evidence
+> standard, so the evidence package in [5.6](#56-the-evidence-package) and the
+> roles in [5.7](#57-who-decides-and-who-checks) are our recommendation. Two
+> points remain open for the customer: whether **external** certification is
+> required in addition to platform verification, and who holds the
+> data-governance accountability named below.
+
 The brief is explicit: for the coded exercise, trust the supplied quality
 counts after validation, but **the architecture must explain how production
 quality claims are independently verified**. A marketplace that takes a
@@ -164,7 +173,111 @@ The coded slice already returns a meaningful subset of this: `providerId`,
 excluded rows with reasons. A customer can see not only which offer won, but
 which did not and why.
 
-## 5.5 What is implemented versus designed
+## 5.6 The evidence package
+
+`validEventCount` counts *distinct, schema-valid, consented* events. Three
+separate assertions, so a provider must evidence each of them separately
+rather than offering one number and a promise.
+
+A defensible package covers five claims. Each one names what the provider
+submits and what the platform reproduces independently — the second column is
+the part that makes the claim checkable rather than merely stated.
+
+| Claim | Proposed evidence |
+| --- | --- |
+| **Events are distinct** | Reproducible event-identity and deduplication rules, with counts reconciled against the submitted dataset |
+| **Events conform to the product** | Versioned schema-validation results linked to the canonical product and its observation window |
+| **Data use is authorised** | Traceable consent and rights records covering the relevant vehicles, time period and permitted use |
+| **Counts are reproducible** | A versioned verification job, its input references, output counts, timestamps, and an integrity-protected audit record |
+| **Telemetry is trustworthy** | Source and device provenance plus plausibility checks, with stronger independent corroboration where the risk warrants it |
+
+The fourth row is the one that converts the other four from assertions into
+evidence. A count nobody can recompute is an opinion; a count produced by a
+named job version, over named inputs, with a hash-chained record of the run,
+can be re-executed by a third party years later. That is the same standard
+the pricing path already meets
+([4.5](04-pricing-and-comparison.md#45-versioned-configuration-and-reproducibility)),
+applied to quality.
+
+The fifth row is deliberately graduated: "where the risk warrants it".
+Requiring third-party corroboration of every batch would make the marketplace
+uneconomic. Requiring it of a provider on probation, of a newly onboarded
+feed, or of a product where a single buyer's decision carries high
+consequence, is proportionate. The standing score in
+[5.3](#53-the-standing-score-and-its-consequences) is what sets the level.
+
+## 5.7 Who decides, and who checks
+
+**A provider never approves its own certification.** It submits claims and
+evidence; the platform evaluates them. That separation is the whole point,
+and it is worth stating explicitly because the obvious shortcut — accepting a
+declared quality ratio — is exactly what the group has already been accused
+of.
+
+```mermaid
+flowchart LR
+  P[Provider] -->|submits claims<br/>and evidence| V[Platform verification<br/>automated, versioned]
+  V -->|verification report| O[Data-governance owner<br/>accountable for acceptance]
+  O -->|accept / probation / reject| C[(Certification record)]
+  R[Independent reviewer<br/>audit or external] -.inspects.-> V
+  R -.inspects.-> C
+  P -.->|may see its own report| V
+  P -.->|cannot approve| O
+
+  style O fill:#fff3cd,stroke:#856404
+  style P fill:#f8f9fa,stroke:#6c757d
+```
+
+| Role | Who | What they may do | What they may not do |
+| --- | --- | --- | --- |
+| Provider | The supplying organisation | Submit claims and supporting evidence; see its own verification report, rejection reasons and standing | Approve its own certification, alter a verification result, or see another provider's evidence |
+| Platform verification | Automated, versioned, platform-controlled | Recount, validate, score, produce a signed verification report | Exercise discretion — it is deterministic, so two runs agree |
+| **Data-governance owner** | A named accountable person at VectorHarbor | Accept, place on probation, or reject a certification on the evidence | Modify the underlying evidence or the verification job's output |
+| Independent reviewer | Internal audit, or an external assessor | Inspect any evidence, any verification run and any acceptance decision, read-only | Change any record |
+
+Two design consequences follow. The verification job is **deterministic and
+versioned**, so the reviewer can re-run it against the same inputs and expect
+the same counts — discretion lives with the accountable human, not in the
+code. And acceptance decisions are **audit events like any other**, carrying
+the decision, the evidence references, the verification job version and the
+person, which is what lets an auditor reconstruct not just what was decided
+but on what basis.
+
+**Open with the customer:** whether an external certification body is
+required in addition to this, or whether platform verification with
+independent internal review is sufficient. The design supports either; the
+difference is cost and onboarding time.
+
+## 5.8 Contract validity is not real-world accuracy
+
+The single most important distinction in this document, and the one most
+easily lost.
+
+A row can be **contract-valid** — well-formed, schema-conformant, not a
+duplicate, inside the observation window, covered by consent — and still be
+**false**. A location that never happened is schema-valid. A fabricated
+braking event parses perfectly. Deduplication cannot tell a unique real event
+from a unique invented one.
+
+| | What it establishes | What it cannot establish |
+| --- | --- | --- |
+| **Contract validity** | The row is well-formed, unique, in-window, consented, and conforms to the canonical product | That the event describes something that physically happened |
+| **Real-world accuracy** | The event is consistent with physics, with other sensors, and with an attested device | Nothing about schema conformance; an accurate event can still be malformed |
+
+The coded slice enforces contract validity only — strictly, with stable
+reason codes, and that is all the brief asks of it. Production needs both,
+and they are established by different layers: validity by
+[layer 1](#layer-1--deterministic-recount), accuracy by
+[layer 3](#layer-3--physical-plausibility-and-spoof-detection) and the device
+attestation within it.
+
+This is why the brief asks separately to *detect spoofed telemetry* as well as
+to count valid events. Accepting a provider's declared quality ratio would
+address neither, but passing a schema check addresses only the first. Stating
+this plainly matters commercially too: a provider whose feed is 100%
+contract-valid may still be the one to investigate.
+
+## 5.9 What is implemented versus designed
 
 | Capability | Status |
 | --- | --- |
@@ -178,6 +291,9 @@ which did not and why.
 | Physical plausibility and spoof detection | Designed |
 | Device attestation | Designed; depends on field hardware |
 | Signed attestations and sampled third-party audit | Designed |
+| Five-claim evidence package | **Proposed** — awaiting customer agreement on the standard |
+| Separation of duties: provider submits, platform verifies, owner accepts | **Proposed** — requires a named accountable owner |
+| External certification body | **Open question** for the customer |
 
 This split is stated honestly in
 [22 Assumptions and gaps](22-assumptions-and-gaps.md) as well, because the

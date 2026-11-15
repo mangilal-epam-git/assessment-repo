@@ -254,6 +254,10 @@ The agent service needs no code change. Indicative cost is in
 
 ## 24.5 Data handling
 
+> The governing policy, the approval gate and its enforcement are in
+> [25 Model data governance](25-model-data-governance.md). This section
+> summarises the data position; that document is the control.
+
 What is sent to the model, and what is not.
 
 | Sent | Not sent |
@@ -264,10 +268,13 @@ What is sent to the model, and what is not.
 | The operator's question | Other tenants' data |
 | Tool schemas and the system prompt | Secrets, tokens or credentials |
 
-Enforcement is structural rather than procedural: the agent can only see what
-a read tool returns, every read tool is tenant-scoped and consent-gated, and
-no tool returns location or driver identity. Adding such a tool would be a
-code change plus an ADR.
+Enforcement is structural rather than procedural, in two layers. The agent
+can only see what a read tool returns; every read tool is tenant-scoped and
+consent-gated, and no tool returns location or driver identity. Behind that,
+an egress guard classifies the outbound payload and **blocks** the call if a
+prohibited class is present, failing closed and recording the violation
+([ADR-0014](../adr/0014-model-egress-data-classification.md)). The second
+layer is a backstop for the day the first is wrong.
 
 ### Vendor terms required before production
 

@@ -43,5 +43,11 @@ export function createAgentMetrics() {
     rejectedLoad: registry.register(
       new Counter('vh_agent_rejected_load_total', 'Turns shed by the concurrency limiter.'),
     ),
+    egressBlocked: registry.register(
+      new Counter(
+        'vh_agent_egress_blocked_total',
+        'Model calls blocked because the payload contained a prohibited data class.',
+      ),
+    ),
   };
 }

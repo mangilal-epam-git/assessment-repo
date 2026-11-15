@@ -71,6 +71,8 @@ These are real, in this repository, and tested.
 | Concurrency shedding with 503 and `Retry-After` | `app.js` | Load-shedding test |
 | Safe error bodies: stable code, safe message, request id only | `app.js` | Asserts no internals leak |
 | Log redaction of credentials, payment data, VIN, geolocation | `logger.js` | `test/unit/logger.test.js` |
+| Model egress blocked on prohibited data classes, failing closed | `agent/model/egress-policy.js` | `test/unit/agent-egress-policy.test.js` |
+| Secrets and payment data not permittable to a model by configuration | `agent/env.js` | Service refuses to boot |
 | Constant-time admin token comparison | `app.js` | Reload authorisation tests |
 | Security response headers (`nosniff`, `no-store`, `no-referrer`) | `app.js` | HTTP tests |
 | Non-root, read-only, capability-dropped containers | `Dockerfile`, compose, ECS/ACA task definitions | Container CI job |
