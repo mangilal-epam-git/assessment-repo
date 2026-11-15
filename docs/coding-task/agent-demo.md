@@ -63,6 +63,10 @@ separate lines before running `node`.
 If the backend fails, the service falls back to the deterministic planner and
 **says so** in the reported model name. A fallback is never silent.
 
+Still showing `deterministic` after setting the variables? Run
+`npm run diagnose:model`. Variables are read once at boot, so they must be set
+in the same shell that starts the service, and the service must be restarted.
+
 The safety properties are identical on every backend, which is the point: they
 come from the tool registry and the approval gate, not from the model's
 cooperation.

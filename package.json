@@ -28,6 +28,7 @@
     "security:iac": "snyk iac test infrastructure --severity-threshold=high",
     "security:container": "snyk container test vectorharbor/best-offers:local --file=Dockerfile --severity-threshold=high --fail-on=upgradable",
     "security:monitor": "snyk monitor --all-projects --project-name=vectorharbor-best-offers",
-    "security:report": "node -e \"require('node:fs').mkdirSync('reports',{recursive:true})\" && snyk code test --sarif-file-output=reports/snyk-code.sarif || true"
+    "security:report": "node -e \"require('node:fs').mkdirSync('reports',{recursive:true})\" && snyk code test --sarif-file-output=reports/snyk-code.sarif || true",
+    "diagnose:model": "node scripts/diagnose-model.js"
   }
 }

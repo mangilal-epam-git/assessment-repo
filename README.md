@@ -323,7 +323,18 @@ To use a real model, set two environment variables:
 On Windows PowerShell set each with `$env:MODEL_BACKEND = "anthropic"` on its
 own line, then run `node src\agent\server.js`.
 
-Check what actually answered with `curl localhost:8082/readyz`. If a backend
+Check what actually answered with `curl localhost:8082/readyz`, or run the
+diagnostic, which prints what the process can genuinely see:
+
+```bash
+npm run diagnose:model            # configuration only
+node scripts/diagnose-model.js --ping   # also make one real call
+```
+
+If it still reports `deterministic` after you set the variables, they are not
+in the shell that started the service — environment variables are read once at
+boot, so set them and start `node src/agent/server.js` **from the same
+window**. If a backend
 fails, the service falls back to the deterministic planner and says so in the
 reported model name — a substitution is never silent.
 

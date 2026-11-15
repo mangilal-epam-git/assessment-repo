@@ -130,6 +130,24 @@ Nothing leaves the machine. Expect slower turns and less reliable tool
 calling than a frontier model; the gates behave identically, which is the
 point of trying it.
 
+### Diagnosing "it still says deterministic"
+
+```bash
+npm run diagnose:model
+```
+
+Prints the variables the process can actually see, the resolved backend, and
+what to fix. Add `--ping` to make one real call and confirm the credential.
+
+Environment variables are read **once, at boot**. The two usual causes are a
+service that was never restarted, and variables set in a different shell from
+the one running it. Note also that a missing key or an unknown backend name
+makes the service refuse to start, so a service that is running and reporting
+`deterministic` simply never received the variables.
+
+A backend reported as `anthropic+fallback` is correct and expected: the
+deterministic planner stands by in case the backend fails.
+
 ### Verifying which model answered
 
 ```bash
