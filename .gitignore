@@ -29,6 +29,9 @@ terraform.rc
 terraform.tfvars
 !*.tfvars.example
 
+# Office lock files, created while a document is open
+~$*
+
 # Editors and OS
 .vscode/
 .idea/
