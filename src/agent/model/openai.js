@@ -35,20 +35,27 @@ export function createOpenAiAdapter(config) {
         {
           method: 'POST',
           headers,
+          // `tools: []` with `tool_choice: 'auto'` is rejected by several
+          // OpenAI-compatible gateways, so both keys are omitted when there
+          // are no tools to offer.
           body: JSON.stringify({
             model: isAzure ? undefined : model,
             max_tokens: config.modelMaxTokens,
             temperature: config.modelTemperature,
             messages: [{ role: 'system', content: system }, ...toOpenAiMessages(messages)],
-            tools: tools.map((tool) => ({
-              type: 'function',
-              function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.inputSchema,
-              },
-            })),
-            tool_choice: 'auto',
+            ...(tools.length > 0
+              ? {
+                  tools: tools.map((tool) => ({
+                    type: 'function',
+                    function: {
+                      name: tool.name,
+                      description: tool.description,
+                      parameters: tool.inputSchema,
+                    },
+                  })),
+                  tool_choice: 'auto',
+                }
+              : {}),
           }),
         },
         config.modelTimeoutMillis,

@@ -266,3 +266,68 @@ test('the deterministic planner reports plainly when nothing needs doing', async
   assert.equal(reply.toolCalls.length, 0);
   assert.match(reply.text, /No vehicle currently warrants a work order/);
 });
+
+test('an empty tools array is omitted rather than sent', async (t) => {
+  // The Anthropic API rejects `tools: []` with HTTP 400. The agent always
+  // supplies tools, but a connectivity probe may not, and a 400 there sends
+  // an operator hunting a credential problem that does not exist.
+  const server = await stub(() => ({ payload: { content: [{ type: 'text', text: 'ok' }] } }));
+  t.after(() => server.close());
+
+  const adapter = createModelAdapter({ ...baseConfig, modelBackend: 'anthropic', anthropicBaseUrl: server.url });
+  await adapter.complete({ ...request, tools: [] });
+  assert.equal('tools' in server.received[0].body, false, 'the tools key must be absent, not empty');
+
+  await adapter.complete(request);
+  assert.equal(server.received[1].body.tools.length, 1, 'tools are sent when there are some');
+});
+
+test('OpenAI omits both tools and tool_choice when there are none', async (t) => {
+  const server = await stub(() => ({ payload: { choices: [{ message: { content: 'ok' } }] } }));
+  t.after(() => server.close());
+
+  const adapter = createModelAdapter({ ...baseConfig, modelBackend: 'openai', openaiBaseUrl: server.url });
+  await adapter.complete({ ...request, tools: [] });
+  assert.equal('tools' in server.received[0].body, false);
+  assert.equal('tool_choice' in server.received[0].body, false, 'tool_choice without tools is also rejected');
+});
+
+test('an empty system prompt is omitted for Anthropic', async (t) => {
+  const server = await stub(() => ({ payload: { content: [] } }));
+  t.after(() => server.close());
+  const adapter = createModelAdapter({ ...baseConfig, modelBackend: 'anthropic', anthropicBaseUrl: server.url });
+  await adapter.complete({ ...request, system: '' });
+  assert.equal('system' in server.received[0].body, false);
+});
+
+test('a provider error message is surfaced for diagnosis but bounded', async (t) => {
+  const server = await stub(() => ({
+    status: 400,
+    payload: { type: 'error', error: { type: 'invalid_request_error', message: 'model: unknown model claude-foo' } },
+  }));
+  t.after(() => server.close());
+
+  const adapter = createModelAdapter({ ...baseConfig, modelBackend: 'anthropic', anthropicBaseUrl: server.url });
+  await assert.rejects(
+    () => adapter.complete(request),
+    (error) => {
+      assert.match(error.message, /HTTP 400/);
+      assert.equal(error.status, 400);
+      assert.equal(error.providerMessage, 'model: unknown model claude-foo');
+      return true;
+    },
+  );
+});
+
+test('a provider message cannot become a data-leak channel', async () => {
+  const { extractProviderMessage } = await import('../../src/agent/model/provider.js');
+  // Bounded, whatever the provider echoes back.
+  const huge = JSON.stringify({ error: { message: 'x'.repeat(5000) } });
+  assert.equal(extractProviderMessage(huge).length, 200);
+  // Handles each provider's shape, and non-JSON.
+  assert.equal(extractProviderMessage(JSON.stringify({ error: 'flat string' })), 'flat string');
+  assert.equal(extractProviderMessage(JSON.stringify({ message: 'top level' })), 'top level');
+  assert.equal(extractProviderMessage('<html>502 Bad Gateway</html>'), '<html>502 Bad Gateway</html>');
+  assert.equal(extractProviderMessage(''), undefined);
+  assert.equal(extractProviderMessage(undefined), undefined);
+});

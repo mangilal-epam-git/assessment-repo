@@ -20,17 +20,24 @@ export function createAnthropicAdapter(config) {
     async complete({ system, messages, tools, signal }) {
       if (!config.modelApiKey) throw new Error('MODEL_API_KEY is required for the anthropic backend');
 
+      // An empty `tools` array is rejected with HTTP 400, so the key is
+      // omitted entirely when there are none. The agent always supplies
+      // tools; a connectivity check may not.
       const body = {
         model,
         max_tokens: config.modelMaxTokens,
         temperature: config.modelTemperature,
-        system,
-        tools: tools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-          input_schema: tool.inputSchema,
-        })),
         messages: toAnthropicMessages(messages),
+        ...(system ? { system } : {}),
+        ...(tools.length > 0
+          ? {
+              tools: tools.map((tool) => ({
+                name: tool.name,
+                description: tool.description,
+                input_schema: tool.inputSchema,
+              })),
+            }
+          : {}),
       };
 
       const payload = await postJson(

@@ -31,9 +31,21 @@ $env:MODEL_NAME    = "claude-sonnet-4-5"
 node scripts\diagnose-model.js --ping
 ```
 
-Expect `PASS  anthropic answered as claude-sonnet-4-5`. If it fails, you have a
-day to fix it — and the demo works regardless, because the assistant falls
-back to the built-in planner. Decide in advance which you are presenting.
+Expect `PASS  anthropic answered as claude-sonnet-4-5`.
+
+If it fails, the output now prints the provider's own message under
+`provider said:` — that names the offending field or model and is usually the
+whole answer. Common cases:
+
+| Provider said | Fix |
+| --- | --- |
+| `model: unknown model …` | Use a dated identifier, e.g. `MODEL_NAME=claude-sonnet-4-5-20250929` |
+| `authentication_error` | Wrong or revoked key, or a Claude.ai session rather than an API key (`sk-ant-…`) |
+| `credit balance is too low` | No credit on the account |
+| nothing, request timed out | No outbound network, or a corporate proxy intercepting TLS |
+
+Either way the demo works, because the assistant falls back to the built-in
+planner. Decide in advance which you are presenting.
 
 Check the ports are free:
 

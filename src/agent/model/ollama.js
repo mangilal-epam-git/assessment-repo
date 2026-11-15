@@ -31,14 +31,18 @@ export function createOllamaAdapter(config) {
             stream: false,
             options: { temperature: config.modelTemperature, num_predict: config.modelMaxTokens },
             messages: [{ role: 'system', content: system }, ...toOpenAiMessages(messages)],
-            tools: tools.map((tool) => ({
-              type: 'function',
-              function: {
-                name: tool.name,
-                description: tool.description,
-                parameters: tool.inputSchema,
-              },
-            })),
+            ...(tools.length > 0
+              ? {
+                  tools: tools.map((tool) => ({
+                    type: 'function',
+                    function: {
+                      name: tool.name,
+                      description: tool.description,
+                      parameters: tool.inputSchema,
+                    },
+                  })),
+                }
+              : {}),
           }),
         },
         config.modelTimeoutMillis,

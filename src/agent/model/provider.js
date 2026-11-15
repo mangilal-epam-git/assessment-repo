@@ -125,7 +125,14 @@ export async function postJson(url, init, timeoutMillis, signal) {
     const response = await fetch(url, { ...init, signal: controller.signal, redirect: 'error' });
     const text = await response.text();
     if (!response.ok) {
-      throw new Error(`model endpoint returned HTTP ${response.status}`);
+      // The provider's own message describes OUR request - a bad model name,
+      // a malformed field - and is the single most useful thing for
+      // diagnosis. It is extracted and bounded rather than dumping the body,
+      // and carried on a property so callers choose whether to show it.
+      const error = new Error(`model endpoint returned HTTP ${response.status}`);
+      error.status = response.status;
+      error.providerMessage = extractProviderMessage(text);
+      throw error;
     }
     try {
       return JSON.parse(text);
@@ -136,6 +143,30 @@ export async function postJson(url, init, timeoutMillis, signal) {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);
   }
+}
+
+/**
+ * Pulls a short, human-readable reason out of a provider's error body.
+ *
+ * Anthropic, OpenAI and Ollama all nest it differently. Bounded to 200
+ * characters so a provider echoing our payload back cannot turn an error
+ * message into a data leak.
+ *
+ * @param {string} text
+ * @returns {string|undefined}
+ */
+export function extractProviderMessage(text) {
+  if (typeof text !== 'string' || text.length === 0) return undefined;
+  try {
+    const body = JSON.parse(text);
+    const message =
+      body?.error?.message ?? body?.error ?? body?.message ?? body?.detail ?? undefined;
+    if (typeof message === 'string' && message.trim() !== '') return message.slice(0, 200);
+  } catch {
+    // Not JSON: fall through to the raw snippet below.
+  }
+  const snippet = text.replace(/\s+/g, ' ').trim();
+  return snippet === '' ? undefined : snippet.slice(0, 200);
 }
 
 /**

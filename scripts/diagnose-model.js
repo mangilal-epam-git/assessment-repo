@@ -87,22 +87,43 @@ if (!primary.requiresNetwork && primary.name === 'deterministic') {
 out('Live check');
 out('----------');
 try {
+  // One tool is included deliberately: a real turn always sends tools, so a
+  // toolless probe would not exercise the same request shape.
   const reply = await primary.complete({
-    system: 'Reply with the single word: ready',
-    messages: [{ role: 'user', content: 'Reply with the single word: ready' }],
-    tools: [],
+    system: 'Reply with the single word: ready.',
+    messages: [{ role: 'user', content: 'Reply with the single word: ready.' }],
+    tools: [
+      {
+        name: 'connectivity_probe',
+        description: 'A no-op tool, present only so the request matches a real one. Do not call it.',
+        inputSchema: { type: 'object', properties: {}, required: [] },
+      },
+    ],
   });
   out(`  PASS  ${primary.name} answered as ${reply.model}`);
   if (reply.text) out(`        "${reply.text.slice(0, 80)}"`);
 } catch (error) {
   out(`  FAIL  ${error.message}`);
+  // The provider's own message names the offending field or model, which is
+  // almost always the fastest route to the fix.
+  if (error.providerMessage) out(`        provider said: ${error.providerMessage}`);
   out();
   out('  Common causes:');
+  out('    HTTP 400       malformed request, usually an unrecognised model name or');
+  out('                   an unsupported parameter. Read "provider said" above');
   out('    HTTP 401/403   the key is wrong, revoked, or for a different product');
   out('    HTTP 404       wrong model name, or wrong deployment name on Azure');
+  out('    HTTP 429       rate limited, or no credit on the account');
   out('    timed out      no outbound network, or a corporate proxy intercepting TLS');
   out('    ENOTFOUND      the base URL is wrong');
   out();
+  if (config.modelBackend === 'anthropic') {
+    out('  If the model name is rejected, try a dated identifier, for example');
+    out('    MODEL_NAME=claude-sonnet-4-5-20250929');
+    out('  and confirm the key is an Anthropic API key (sk-ant-...), not a');
+    out('  Claude.ai session or an OpenAI key.');
+    out();
+  }
   out('  The service still works: it falls back to the deterministic planner and');
   out('  reports the substitution rather than failing the turn.');
   process.exit(1);
