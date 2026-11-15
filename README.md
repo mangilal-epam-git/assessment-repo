@@ -15,7 +15,8 @@ Two services are implemented:
 
 | | |
 | --- | --- |
-| **Architecture documentation** | [`docs/`](docs/README.md) — 23 documents, 12 ADRs, Mermaid diagrams |
+| **Architecture documentation** | [`docs/`](docs/README.md) — 24 documents, 13 ADRs, 43 Mermaid diagrams |
+| **Customer deck** | [`docs/presentation/`](docs/presentation/README.md) — five slides with speaker notes |
 | **Infrastructure as code** | [`infrastructure/`](infrastructure/README.md) — Terraform for AWS and Azure |
 | **Tests** | 288 passing, 96.2% line coverage (thresholds enforced) |
 | **Runtime dependencies** | **Zero** — Node.js standard library only |

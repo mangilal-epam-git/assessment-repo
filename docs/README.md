@@ -16,6 +16,11 @@ If you have ten minutes, read
 they cover the launch priorities of price transparency and demonstrable data
 rights.
 
+If you are presenting this, the deck is
+[docs/presentation](presentation/README.md) — five slides with speaker notes,
+plus a suggested running order that interleaves the slides with the two live
+demos.
+
 If you are reviewing the AI part, read
 [24 AI model strategy](architecture/24-ai-model-strategy.md) for the model
 choices and deployment, and
@@ -88,6 +93,12 @@ plainly what is built, what is designed, and what is neither.
 | [Worked examples](coding-task/worked-examples.md) | Every fixture number derived by hand, step by step |
 | [Test strategy](coding-task/test-strategy.md) | What is tested, at which level, and what each test defends |
 | [Supervised agent demo](coding-task/agent-demo.md) | Running the agent console, switching models, the injection demonstration |
+
+### Presentation
+
+| Document | Contents |
+| --- | --- |
+| [Presentation](presentation/README.md) | Five-slide customer deck, the narrative behind it, and how to regenerate it |
 
 ### Runbooks
 

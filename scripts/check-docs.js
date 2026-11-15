@@ -106,7 +106,7 @@ if (!indexText) {
   problems.push('docs/README.md is missing');
 } else {
   const linked = new Set();
-  for (const match of indexText.matchAll(/\]\((architecture\/[^)#]+|adr\/[^)#]+|coding-task\/[^)#]+|runbooks\/[^)#]+)\)/g)) {
+  for (const match of indexText.matchAll(/\]\((architecture\/[^)#]+|adr\/[^)#]+|coding-task\/[^)#]+|runbooks\/[^)#]+|presentation\/[^)#]+)\)/g)) {
     linked.add(path.resolve(root, 'docs', match[1]));
   }
   for (const file of files) {
