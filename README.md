@@ -261,6 +261,14 @@ Coverage thresholds (90% lines, 90% functions, 80% branches) are enforced by
 the test command, so `npm test` fails if coverage regresses. Current:
 **302 tests, 96.8% lines, 92.7% functions, 88.8% branches**.
 
+### Presenting this
+
+Step-by-step startup for all three services, a running order, and a
+troubleshooting table: [docs/runbooks/demo-day.md](docs/runbooks/demo-day.md).
+One thing that catches people out — the offers service needs
+`FIXED_CLOCK=2026-06-15T10:05:00Z`, or the brief's fixtures are correctly
+judged stale and you get zero offers.
+
 ### Where to see the results
 
 Locally, `npm test` prints each test and a per-file coverage table. For

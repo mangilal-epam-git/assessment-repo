@@ -104,6 +104,7 @@ plainly what is built, what is designed, and what is neither.
 
 | Runbook | When to use it |
 | --- | --- |
+| [Demo day](runbooks/demo-day.md) | Starting all three services and presenting them, step by step |
 | [Incident response](runbooks/incident-response.md) | Alert fired, service degraded, provider down |
 | [Pricing configuration change](runbooks/pricing-change.md) | Changing FX, margin or the quality floor safely |
 | [Disaster recovery drill](runbooks/dr-drill.md) | Quarterly rehearsal and evidence capture |
