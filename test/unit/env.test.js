@@ -25,7 +25,7 @@ test('parses supplied values', () => {
   assert.equal(config.logLevel, 'debug');
   assert.equal(config.providerMaxAttempts, 5);
   assert.equal(config.configWatchEnabled, false);
-  assert.equal(config.providerTelemetry1Url, 'https://p1.example/offers');
+  assert.deepEqual(config.providerTelemetry1Endpoints, ['https://p1.example/offers']);
 });
 
 test('port 0 is allowed and means an ephemeral port', () => {
@@ -53,4 +53,16 @@ test('reports every problem in one message', () => {
     () => readEnvironment({ PORT: '-1', LOG_LEVEL: 'loud' }),
     (error) => error.message.includes('PORT') && error.message.includes('LOG_LEVEL'),
   );
+});
+
+test('a provider can list several endpoints, and the strategy is validated', () => {
+  const config = readEnvironment({
+    PROVIDER_TELEMETRY1_URL: 'https://a.example/f, https://b.example/f',
+    PROVIDER_ENDPOINT_STRATEGY: 'FAN-OUT',
+  });
+  assert.deepEqual(config.providerTelemetry1Endpoints, ['https://a.example/f', 'https://b.example/f']);
+  assert.equal(config.providerEndpointStrategy, 'fan-out');
+  assert.equal(readEnvironment({}).providerEndpointStrategy, 'failover');
+  assert.throws(() => readEnvironment({ PROVIDER_ENDPOINT_STRATEGY: 'roulette' }), /failover or fan-out/);
+  assert.throws(() => readEnvironment({ PROVIDER_TELEMETRY1_URL: 'https://a.example/f,nope' }), /valid absolute URL/);
 });

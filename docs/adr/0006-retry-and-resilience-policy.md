@@ -103,3 +103,68 @@ outbound PSP calls. One resilience approach, tested in one place.
 Provider count grows beyond a handful (a circuit breaker becomes necessary),
 or a provider's SLA justifies per-provider tuning rather than one global
 policy.
+
+## Amendment, 2026-11-16: configurable policy and multiple endpoints
+
+Two requirements arrived after the original decision.
+
+### 1. Several endpoints per provider
+
+A provider may publish mirrors, a failover host or a second region. List them
+comma-separated: `PROVIDER_TELEMETRY1_URL=https://a/f,https://b/f`. A single
+URL is a list of one, so existing configuration is unchanged.
+`PROVIDER_ENDPOINT_STRATEGY` chooses how they are used.
+
+| Strategy | Behaviour | Choose it when |
+| --- | --- | --- |
+| `failover` (default) | Try in order; the first usable response wins | Mirrors should agree, and speed matters |
+| `fan-out` | Query all concurrently; the ranking picks the lowest cost across every usable response | Mirrors may legitimately differ, and a cheaper regional price must not be missed |
+
+Three rules keep this honest.
+
+- **Each endpoint is evaluated separately.** The duplicate-`productId` rule is
+  scoped to one provider *response*. Merging two mirrors into one body first
+  would make a product quoted by both look self-contradictory and reject it.
+- **Staleness still applies per row.** A cheap but stale mirror cannot win, and
+  a fresh mirror is still used alongside it.
+- **A degraded provider is reported, not hidden.** If some endpoints failed but
+  one answered, the result is complete, the provider appears in
+  `degradedProviders`, `partial` is true, and
+  `vh_provider_endpoint_failover_total` and `vh_provider_degraded_total` move.
+  Only when every endpoint fails is the provider `unavailable`.
+
+Retry still applies independently to each endpoint.
+
+### 2. A policy that can change without a deployment
+
+Timing now lives in the hot-reloadable configuration file, versioned like
+pricing ([ADR-0007](0007-configuration-snapshots.md)) and validated whole:
+
+```json
+"resilienceVersion": "resilience-2026-11-16",
+"resilience": {
+  "default":   { "strategy": "exponential-full-jitter", "maxAttempts": 3,
+                 "initialDelayMillis": 100, "maxDelayMillis": 2000,
+                 "totalBudgetMillis": 5000, "perAttemptTimeoutMillis": 2000 },
+  "providers": { "telemetry2": { "strategy": "decorrelated-jitter", "maxAttempts": 6 } }
+}
+```
+
+- **Six named strategies:** `exponential-full-jitter`, `exponential-equal-jitter`,
+  `exponential`, `decorrelated-jitter`, `linear`, `fixed`. A new one is one entry
+  in `BACKOFF_STRATEGIES` plus its name in the validator.
+- **Per-provider overrides inherit from `default`**, so tuning one slow
+  provider is one line, not a restated policy.
+- **Resolved on every fetch**, so a reload changes behaviour on the next
+  request. Verified by a test that reloads the file and observes the attempt
+  count move from 1 to 3 per provider.
+- **Precedence:** environment variables are the baseline; a `resilience`
+  section, when present, overrides them. Absent, nothing changes.
+- An invalid section is rejected whole and the previous policy keeps serving,
+  as with pricing. Every response reports `resilienceVersion`.
+
+**Trade-off accepted:** fan-out multiplies upstream requests by the endpoint
+count, and an aggressive policy multiplies them again. The bounds in the
+validator (at most 10 attempts, 300 s budget) exist so a configuration typo
+cannot become a self-inflicted denial of service against a provider.
+

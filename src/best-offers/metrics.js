@@ -145,6 +145,12 @@ export function createMetrics() {
     providerDuration: registry.register(
       new Histogram('vh_provider_request_duration_seconds', 'Provider fetch duration in seconds.'),
     ),
+    providerEndpointFailover: registry.register(
+      new Counter('vh_provider_endpoint_failover_total', 'Times an endpoint failed and the next was tried.'),
+    ),
+    providerDegraded: registry.register(
+      new Counter('vh_provider_degraded_total', 'Responses served from a subset of a provider endpoints.'),
+    ),
     providerUnavailable: registry.register(
       new Counter('vh_provider_unavailable_total', 'Provider responses that yielded no usable array.'),
     ),

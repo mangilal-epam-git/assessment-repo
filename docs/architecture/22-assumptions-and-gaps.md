@@ -94,7 +94,7 @@ Honest limitations of what *is* built:
 | Single shared admin token | A coarse credential for a sensitive endpoint | Workload identity with short-lived credentials and per-operator attribution |
 | Quality claims trusted after validation | As the brief directs, but a real exposure in production | Implement [layer 1 recount](05-data-quality-and-provenance.md#layer-1--deterministic-recount) before any live provider |
 | Egress guard is pattern matching, not semantic understanding | A sufficiently unusual encoding of a coordinate would pass | It is a backstop; minimisation at source remains the control that matters ([ADR-0014](../adr/0014-model-egress-data-classification.md)) |
-| No circuit breaker across requests | A persistently failing provider is retried on every request | Add a per-provider breaker; current bounded retries limit the damage |
+| No circuit breaker across requests | A persistently failing provider is retried on every request, on every endpoint | Add a per-provider breaker; bounded retries and failover limit the damage. Retry timing is now configurable ([ADR-0006](../adr/0006-retry-and-resilience-policy.md)) |
 | No distributed tracing backend | `x-request-id` propagates, but no span export | Add OpenTelemetry export; the header plumbing is already there |
 | No rate limiting inside the service | Relies on edge WAF and concurrency shedding | Add per-tenant quotas when authentication lands |
 | Provider list fixed at two | Configuration-shaped but not dynamic | Generalise to a provider registry; the orchestration already loops over a list |

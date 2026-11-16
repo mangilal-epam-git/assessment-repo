@@ -11,6 +11,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { Rational } from './rational.js';
+import { BACKOFF_STRATEGIES, DEFAULT_STRATEGY, DEFAULT_RETRY_POLICY } from './retry.js';
 
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const MAX_MARGIN_BASIS_POINTS = 1_000_000; // 10 000% - a sanity bound, not a business rule
@@ -58,6 +59,10 @@ export function buildSnapshot(raw, loadedAtEpochMillis = Date.now()) {
     'fxRatesToBase',
     'defaultMarginBasisPoints',
     'minimumQualityRatio',
+    // Resilience is optional: an older configuration without it keeps the
+    // built-in defaults, so adding this section is not a breaking change.
+    'resilienceVersion',
+    'resilience',
   ]);
   for (const key of Object.keys(doc)) {
     if (!allowed.has(key)) problems.push(`unknown configuration field "${key}"`);
@@ -141,6 +146,8 @@ export function buildSnapshot(raw, loadedAtEpochMillis = Date.now()) {
     }
   }
 
+  const resilience = buildResilience(doc, problems);
+
   if (problems.length > 0) throw new ConfigValidationError(problems);
 
   // Object.freeze does not freeze a Map's contents, and the whole point of a
@@ -159,9 +166,132 @@ export function buildSnapshot(raw, loadedAtEpochMillis = Date.now()) {
     defaultMarginMultiplier: Rational.fromInteger(1).add(
       new Rational(BigInt(marginBasisPoints), 10_000n),
     ),
+    resilienceVersion: typeof doc.resilienceVersion === 'string' ? doc.resilienceVersion : 'built-in',
+    resilience,
     loadedAtEpochMillis,
   };
   return Object.freeze(snapshot);
+}
+
+/**
+ * Validates the optional resilience section.
+ *
+ * Retry timing is configuration rather than code so that a provider changing
+ * its behaviour is answered by a reviewed configuration change with an audit
+ * trail, not a deployment. Per-provider overrides inherit from `default`, so
+ * tuning one slow provider does not mean restating the whole policy.
+ *
+ * @param {Record<string, unknown>} doc
+ * @param {string[]} problems  appended to in place
+ * @returns {{ default: object, providers: Readonly<Record<string, object>> }}
+ */
+function buildResilience(doc, problems) {
+  const builtIn = {
+    strategy: DEFAULT_STRATEGY,
+    maxAttempts: DEFAULT_RETRY_POLICY.maxAttempts,
+    initialDelayMillis: DEFAULT_RETRY_POLICY.initialDelayMillis,
+    maxDelayMillis: DEFAULT_RETRY_POLICY.maxDelayMillis,
+    backoffMultiplier: DEFAULT_RETRY_POLICY.backoffMultiplier,
+    totalBudgetMillis: DEFAULT_RETRY_POLICY.totalBudgetMillis,
+    perAttemptTimeoutMillis: 2000,
+  };
+
+  const raw = doc.resilience;
+  if (raw === undefined) {
+    return Object.freeze({ default: Object.freeze({ ...builtIn }), providers: Object.freeze({}) });
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    problems.push('"resilience" must be an object');
+    return Object.freeze({ default: Object.freeze({ ...builtIn }), providers: Object.freeze({}) });
+  }
+
+  for (const key of Object.keys(raw)) {
+    if (key !== 'default' && key !== 'providers') {
+      problems.push(`unknown resilience field "${key}"`);
+    }
+  }
+
+  const bounds = {
+    maxAttempts: [1, 10],
+    initialDelayMillis: [0, 60_000],
+    maxDelayMillis: [0, 120_000],
+    backoffMultiplier: [1, 10],
+    totalBudgetMillis: [1, 300_000],
+    perAttemptTimeoutMillis: [50, 120_000],
+  };
+
+  /** @param {unknown} value @param {string} where @param {object} inherited */
+  const policy = (value, where, inherited) => {
+    if (value === undefined) return { ...inherited };
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      problems.push(`"${where}" must be an object`);
+      return { ...inherited };
+    }
+    const entry = /** @type {Record<string, unknown>} */ (value);
+    const resolved = { ...inherited };
+
+    for (const key of Object.keys(entry)) {
+      if (key !== 'strategy' && !Object.hasOwn(bounds, key)) {
+        problems.push(`unknown resilience setting "${where}.${key}"`);
+      }
+    }
+
+    if (entry.strategy !== undefined) {
+      if (typeof entry.strategy !== 'string' || !Object.hasOwn(BACKOFF_STRATEGIES, entry.strategy)) {
+        problems.push(
+          `"${where}.strategy" must be one of: ${Object.keys(BACKOFF_STRATEGIES).join(', ')}`,
+        );
+      } else {
+        resolved.strategy = entry.strategy;
+      }
+    }
+
+    for (const [key, [min, max]] of Object.entries(bounds)) {
+      if (entry[key] === undefined) continue;
+      const number = entry[key];
+      if (typeof number !== 'number' || !Number.isFinite(number) || number < min || number > max) {
+        problems.push(`"${where}.${key}" must be a number between ${min} and ${max}`);
+        continue;
+      }
+      resolved[key] = number;
+    }
+
+    if (resolved.maxDelayMillis < resolved.initialDelayMillis) {
+      problems.push(`"${where}.maxDelayMillis" must not be below initialDelayMillis`);
+    }
+    return resolved;
+  };
+
+  const defaults = policy(raw.default, 'resilience.default', builtIn);
+
+  /** @type {Record<string, object>} */
+  const providers = {};
+  if (raw.providers !== undefined) {
+    if (raw.providers === null || typeof raw.providers !== 'object' || Array.isArray(raw.providers)) {
+      problems.push('"resilience.providers" must be an object of providerId -> settings');
+    } else {
+      for (const [providerId, override] of Object.entries(raw.providers)) {
+        // Overrides inherit from default, so a one-line override is enough.
+        providers[providerId] = Object.freeze(
+          policy(override, `resilience.providers.${providerId}`, defaults),
+        );
+      }
+    }
+  }
+
+  return Object.freeze({ default: Object.freeze(defaults), providers: Object.freeze(providers) });
+}
+
+/**
+ * The effective policy for one provider: its override if it has one, the
+ * configured default otherwise.
+ *
+ * @param {object} snapshot
+ * @param {string} providerId
+ */
+export function resolveRetryPolicy(snapshot, providerId) {
+  const resilience = snapshot.resilience ?? { default: DEFAULT_RETRY_POLICY, providers: {} };
+  return resilience.providers[providerId] ?? resilience.default;
 }
 
 /**

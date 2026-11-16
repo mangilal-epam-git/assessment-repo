@@ -1,14 +1,21 @@
 /**
- * Retry policy: bounded attempts, exponential backoff with full jitter,
- * an overall deadline, and prompt cancellation.
+ * Retry policy: bounded attempts, a choice of backoff strategy, an overall
+ * deadline, and prompt cancellation.
  *
  * Rationale (see ADR-0006):
  *   - Only idempotent GETs are retried, so duplicate attempts are safe.
- *   - Full jitter rather than fixed backoff, to avoid synchronised retry
- *     storms across replicas when a provider degrades - the same failure mode
- *     that amplified the sister product's DDoS incident.
+ *   - Full jitter is the default rather than fixed backoff, to avoid
+ *     synchronised retry storms across replicas when a provider degrades -
+ *     the same failure mode that amplified the sister product's DDoS
+ *     incident.
  *   - A total deadline bounds tail latency: the caller's own timeout must
  *     never be the thing that stops us.
+ *
+ * Every timing value is configuration, not code. Strategies are named and
+ * selected by string so the shape of the curve can change without a
+ * deployment, and the whole policy is versioned and hot-reloadable alongside
+ * the pricing snapshot (ADR-0007). When a provider's behaviour changes, the
+ * response to it is a configuration change with an audit trail.
  */
 
 /**
@@ -18,8 +25,72 @@
  * @property {number} maxDelayMillis
  * @property {number} backoffMultiplier
  * @property {number} totalBudgetMillis   wall-clock budget across all attempts
+ * @property {string} [strategy]          a key of BACKOFF_STRATEGIES
  * @property {() => number} [random]      injectable for deterministic tests
  */
+
+/**
+ * Named backoff strategies.
+ *
+ * Each returns the delay in milliseconds before `attempt` (1-based; attempt 1
+ * never waits). Adding a strategy is adding an entry here and permitting its
+ * name in the configuration validator - no call site changes.
+ *
+ * @type {Readonly<Record<string, (attempt: number, policy: RetryPolicy, previousDelay: number) => number>>}
+ */
+export const BACKOFF_STRATEGIES = Object.freeze({
+  /**
+   * Exponential with full jitter: uniform in [0, cappedDelay]. The default,
+   * because it decorrelates retries across replicas better than the
+   * alternatives and so is the least likely to re-converge on a struggling
+   * provider.
+   */
+  'exponential-full-jitter': (attempt, policy) => {
+    const capped = cappedExponential(attempt, policy);
+    return Math.floor((policy.random ?? Math.random)() * capped);
+  },
+
+  /**
+   * Exponential with equal jitter: half the capped delay plus a uniform draw
+   * over the other half. Spreads retries while guaranteeing a minimum wait,
+   * which suits a provider that needs a moment regardless.
+   */
+  'exponential-equal-jitter': (attempt, policy) => {
+    const capped = cappedExponential(attempt, policy);
+    const half = capped / 2;
+    return Math.floor(half + (policy.random ?? Math.random)() * half);
+  },
+
+  /** Exponential with no jitter. Predictable, and prone to synchronised retries. */
+  exponential: (attempt, policy) => Math.floor(cappedExponential(attempt, policy)),
+
+  /**
+   * Decorrelated jitter: a uniform draw between the base delay and three
+   * times the previous delay, capped. Recovers faster than full jitter when
+   * a provider is briefly rather than deeply unwell.
+   */
+  'decorrelated-jitter': (attempt, policy, previousDelay) => {
+    const base = policy.initialDelayMillis;
+    const upper = Math.min(policy.maxDelayMillis, Math.max(base, previousDelay * 3));
+    return Math.floor(base + (policy.random ?? Math.random)() * Math.max(0, upper - base));
+  },
+
+  /** A constant wait. Rarely right across replicas, occasionally right for one. */
+  fixed: (_attempt, policy) => Math.floor(Math.min(policy.initialDelayMillis, policy.maxDelayMillis)),
+
+  /** initialDelay x attempt number, capped. Gentler growth than exponential. */
+  linear: (attempt, policy) =>
+    Math.floor(Math.min(policy.initialDelayMillis * (attempt - 1), policy.maxDelayMillis)),
+});
+
+/** The strategy used when configuration does not name one. */
+export const DEFAULT_STRATEGY = 'exponential-full-jitter';
+
+/** @param {number} attempt @param {RetryPolicy} policy */
+function cappedExponential(attempt, policy) {
+  const exponential = policy.initialDelayMillis * policy.backoffMultiplier ** (attempt - 2);
+  return Math.min(exponential, policy.maxDelayMillis);
+}
 
 /** @type {RetryPolicy} */
 export const DEFAULT_RETRY_POLICY = Object.freeze({
@@ -28,6 +99,7 @@ export const DEFAULT_RETRY_POLICY = Object.freeze({
   maxDelayMillis: 2000,
   backoffMultiplier: 2,
   totalBudgetMillis: 5000,
+  strategy: DEFAULT_STRATEGY,
   random: Math.random,
 });
 
@@ -49,18 +121,24 @@ export class RetryableError extends Error {
 
 /**
  * Computes the delay before attempt number `attempt` (1-based; attempt 1 has
- * no delay). Full jitter: a uniform draw from [0, cappedExponentialDelay].
+ * no delay), using the policy's named strategy.
+ *
+ * An unknown strategy name falls back to the default rather than throwing:
+ * a configuration typo should degrade the curve, not stop the marketplace.
+ * The configuration validator rejects unknown names at load time, so this
+ * path is only reachable by a caller constructing a policy by hand.
  *
  * @param {number} attempt
  * @param {RetryPolicy} policy
+ * @param {number} [previousDelay] used by decorrelated jitter
  * @returns {number} milliseconds
  */
-export function computeBackoffMillis(attempt, policy) {
+export function computeBackoffMillis(attempt, policy, previousDelay = 0) {
   if (attempt <= 1) return 0;
-  const exponential = policy.initialDelayMillis * policy.backoffMultiplier ** (attempt - 2);
-  const capped = Math.min(exponential, policy.maxDelayMillis);
-  const random = policy.random ?? Math.random;
-  return Math.floor(random() * capped);
+  const strategy =
+    BACKOFF_STRATEGIES[policy.strategy ?? DEFAULT_STRATEGY] ?? BACKOFF_STRATEGIES[DEFAULT_STRATEGY];
+  const delay = strategy(attempt, policy, previousDelay);
+  return Math.max(0, Math.min(delay, policy.maxDelayMillis));
 }
 
 /**
@@ -106,6 +184,8 @@ export async function withRetry(operation, { policy, signal, onRetry, monotonicN
   const now = monotonicNow ?? (() => Date.now());
   const startedAt = now();
   let lastError;
+  // Carried between attempts so decorrelated jitter can grow from it.
+  let previousDelay = policy.initialDelayMillis;
 
   if (policy.maxAttempts < 1) throw new RangeError('maxAttempts must be at least 1');
 
@@ -128,8 +208,9 @@ export async function withRetry(operation, { policy, signal, onRetry, monotonicN
       // parser) rather than clamped to maxDelayMillis. The total budget below
       // still bounds how long we are willing to wait overall.
       const suggested = error instanceof RetryableError ? error.retryAfterMillis : undefined;
-      const delayMillis =
-        suggested ?? Math.min(computeBackoffMillis(attempt + 1, policy), policy.maxDelayMillis);
+      const computed = computeBackoffMillis(attempt + 1, policy, previousDelay);
+      previousDelay = computed;
+      const delayMillis = suggested ?? computed;
 
       const elapsed = now() - startedAt;
       if (elapsed + delayMillis >= policy.totalBudgetMillis) break;

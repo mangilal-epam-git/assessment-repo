@@ -523,7 +523,8 @@ list with defaults in [`.env.example`](.env.example).
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `PRICING_CONFIG_PATH` | `config/pricing-config.json` | Pricing snapshot |
 | `PROVIDER_TELEMETRY1_URL` | localhost mock | Provider endpoint — identity comes from here |
-| `PROVIDER_TELEMETRY2_URL` | localhost mock | Provider endpoint |
+| `PROVIDER_TELEMETRY2_URL` | localhost mock | Provider endpoint. Either provider may list several, comma-separated |
+| `PROVIDER_ENDPOINT_STRATEGY` | `failover` | `failover` tries endpoints in order; `fan-out` queries all and ranks across them |
 | `PROVIDER_TIMEOUT_MS` | `2000` | Per-attempt timeout |
 | `PROVIDER_MAX_ATTEMPTS` | `3` | Including the first attempt |
 | `PROVIDER_RETRY_BUDGET_MS` | `5000` | Total retry budget |

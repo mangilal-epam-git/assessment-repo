@@ -85,19 +85,26 @@ export class BestOffersService {
     const rejected = [];
 
     for (const result of usable) {
-      const evaluation = evaluateProviderRows({
-        providerId: result.providerId,
-        rows: /** @type {unknown[]} */ (result.rows),
-        nowEpochMillis,
-        snapshot,
-      });
-      // Appended with a loop, not `push(...array)`: spreading makes every
-      // element a function argument, which overflows the call stack at around
-      // 130k rows and turns one hostile provider body into a 500 for everyone.
-      for (const candidate of evaluation.candidates) candidates.push(candidate);
-      for (const row of evaluation.rejected) rejected.push(row);
-      for (const row of evaluation.rejected) {
-        this.metrics?.rowsRejected.inc({ provider: row.providerId, reason: row.reason });
+      // One evaluation per endpoint response. The duplicate-productId rule is
+      // scoped to a single provider response, so merging two mirrors into one
+      // body first would make a product quoted by both look like a
+      // self-contradiction and reject both copies.
+      const responses = result.responses ?? [{ endpoint: undefined, rows: result.rows ?? [] }];
+      for (const response of responses) {
+        const evaluation = evaluateProviderRows({
+          providerId: result.providerId,
+          rows: /** @type {unknown[]} */ (response.rows),
+          nowEpochMillis,
+          snapshot,
+        });
+        // Appended with a loop, not `push(...array)`: spreading makes every
+        // element a function argument, which overflows the call stack at
+        // around 130k rows and turns one hostile body into a 500 for everyone.
+        for (const candidate of evaluation.candidates) candidates.push(candidate);
+        for (const row of evaluation.rejected) {
+          rejected.push(row);
+          this.metrics?.rowsRejected.inc({ provider: row.providerId, reason: row.reason });
+        }
       }
     }
 
@@ -122,8 +129,20 @@ export class BestOffersService {
       : rejected;
     const rejectionSummary = truncatedRejections ? summariseRejections(rejected) : undefined;
 
-    const partial = unavailableProviders.length > 0 || rejected.length > 0;
+    // A provider whose primary endpoint failed but whose mirror answered is
+    // degraded, not unavailable: the result is complete but the estate is not
+    // healthy, and an operator should know.
+    const degradedProviders = results
+      .filter((result) => result.ok && result.degraded)
+      .map((result) => result.providerId)
+      .sort();
+
+    const partial =
+      unavailableProviders.length > 0 || rejected.length > 0 || degradedProviders.length > 0;
     if (partial) this.metrics?.partialResponses.inc();
+    for (const providerId of degradedProviders) {
+      this.metrics?.providerDegraded.inc({ provider: providerId });
+    }
 
     this.logger?.info('best-offers.completed', {
       requestId,
@@ -132,6 +151,10 @@ export class BestOffersService {
       marginVersion: snapshot.marginVersion,
       providersQueried: this.providers.length,
       providersUnavailable: unavailableProviders.length,
+      providersDegraded: degradedProviders.length,
+      endpoints: results.flatMap((result) =>
+        (result.endpoints ?? []).map((endpoint) => ({ provider: result.providerId, ...endpoint })),
+      ),
       candidateCount: candidates.length,
       rejectedCount: rejected.length,
       offerCount: winners.length,
@@ -143,8 +166,10 @@ export class BestOffersService {
       currency: snapshot.baseCurrency,
       fxVersion: snapshot.fxVersion,
       marginVersion: snapshot.marginVersion,
+      resilienceVersion: snapshot.resilienceVersion ?? 'built-in',
       partial,
       unavailableProviders,
+      ...(degradedProviders.length > 0 ? { degradedProviders } : {}),
       rejectedRows: reportedRejections.map(({ providerId, rowIndex, reason }) => ({
         providerId,
         rowIndex,

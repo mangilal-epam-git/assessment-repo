@@ -14,7 +14,7 @@ import { watch } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readEnvironment } from './env.js';
-import { loadConfigStore } from './config.js';
+import { loadConfigStore, resolveRetryPolicy } from './config.js';
 import { Logger } from './logger.js';
 import { createMetrics } from './metrics.js';
 import { ProviderClient } from './provider-client.js';
@@ -47,16 +47,26 @@ export async function startServer({ env = process.env } = {}) {
   };
 
   // Provider identity is configured here, never taken from the payload.
+  // Each provider may list several endpoints; see ADR-0006.
   const providers = [
-    { providerId: 'telemetry1', url: config.providerTelemetry1Url },
-    { providerId: 'telemetry2', url: config.providerTelemetry2Url },
+    { providerId: 'telemetry1', endpoints: config.providerTelemetry1Endpoints },
+    { providerId: 'telemetry2', endpoints: config.providerTelemetry2Endpoints },
   ].map(
-    ({ providerId, url }) =>
+    ({ providerId, endpoints }) =>
       new ProviderClient({
         providerId,
-        url,
+        endpoints,
+        endpointStrategy: config.providerEndpointStrategy,
         timeoutMillis: config.providerTimeoutMillis,
         retryPolicy,
+        // Precedence: environment gives the baseline; a `resilience` section in
+        // the reloadable configuration, when present, overrides it.
+        policyResolver: (id) => {
+          const snapshot = configStore.current();
+          return snapshot.resilienceVersion === 'built-in'
+            ? retryPolicy
+            : { ...retryPolicy, ...resolveRetryPolicy(snapshot, id) };
+        },
         maxBodyBytes: config.providerMaxBodyBytes,
         logger,
         metrics,
@@ -123,7 +133,12 @@ export async function startServer({ env = process.env } = {}) {
     host: config.host,
     fxVersion: configStore.current().fxVersion,
     marginVersion: configStore.current().marginVersion,
-    providers: providers.map((p) => p.providerId),
+    resilienceVersion: configStore.current().resilienceVersion,
+    endpointStrategy: config.providerEndpointStrategy,
+    providers: providers.map((provider) => ({
+      id: provider.providerId,
+      endpoints: provider.endpoints.length,
+    })),
   });
 
   // Hot reload on file change, so a ConfigMap/App Configuration update is

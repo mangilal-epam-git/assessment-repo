@@ -46,6 +46,26 @@ export function readEnvironment(env = process.env) {
     return value;
   };
 
+  // A provider may publish several endpoints (mirrors, a failover host, a
+  // second region). Comma-separated; a single value is a list of one, so
+  // existing configuration keeps working unchanged.
+  const urlList = (key, fallback) => {
+    const raw = env[key];
+    const values = (raw === undefined || raw === '' ? fallback : raw)
+      .split(',').map((v) => v.trim()).filter(Boolean);
+    for (const value of values) {
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          problems.push(`${key} entry "${value}" must be an http(s) URL`);
+        }
+      } catch {
+        problems.push(`${key} entry "${value}" must be a valid absolute URL`);
+      }
+    }
+    return values;
+  };
+
   const config = {
     nodeEnv: string('NODE_ENV', 'development'),
     // 0 is allowed and means "bind an ephemeral port" - used by tests and the demo.
@@ -53,8 +73,9 @@ export function readEnvironment(env = process.env) {
     host: string('HOST', '0.0.0.0'),
     logLevel: string('LOG_LEVEL', 'info'),
     configPath: string('PRICING_CONFIG_PATH', 'config/pricing-config.json'),
-    providerTelemetry1Url: url('PROVIDER_TELEMETRY1_URL', 'http://127.0.0.1:8081/provider/telemetry1'),
-    providerTelemetry2Url: url('PROVIDER_TELEMETRY2_URL', 'http://127.0.0.1:8081/provider/telemetry2'),
+    providerTelemetry1Endpoints: urlList('PROVIDER_TELEMETRY1_URL', 'http://127.0.0.1:8081/provider/telemetry1'),
+    providerTelemetry2Endpoints: urlList('PROVIDER_TELEMETRY2_URL', 'http://127.0.0.1:8081/provider/telemetry2'),
+    providerEndpointStrategy: (env.PROVIDER_ENDPOINT_STRATEGY || 'failover').toLowerCase(),
     providerTimeoutMillis: integer('PROVIDER_TIMEOUT_MS', 2000, { min: 50, max: 60_000 }),
     providerMaxAttempts: integer('PROVIDER_MAX_ATTEMPTS', 3, { min: 1, max: 10 }),
     providerRetryInitialDelayMillis: integer('PROVIDER_RETRY_INITIAL_DELAY_MS', 100, { min: 0, max: 10_000 }),
@@ -71,6 +92,9 @@ export function readEnvironment(env = process.env) {
 
   if (!['debug', 'info', 'warn', 'error'].includes(config.logLevel)) {
     problems.push('LOG_LEVEL must be one of debug, info, warn, error');
+  }
+  if (!['failover', 'fan-out'].includes(config.providerEndpointStrategy)) {
+    problems.push('PROVIDER_ENDPOINT_STRATEGY must be failover or fan-out');
   }
   if (config.providerRetryMaxDelayMillis < config.providerRetryInitialDelayMillis) {
     problems.push('PROVIDER_RETRY_MAX_DELAY_MS must not be below PROVIDER_RETRY_INITIAL_DELAY_MS');
