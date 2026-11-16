@@ -67,6 +67,7 @@ plainly what is built, what is designed, and what is neither.
 | [23 Boundaries and licensing](architecture/23-boundaries-and-licensing.md) | What is built vs mocked, and the open-source licensing position |
 | [24 AI model strategy](architecture/24-ai-model-strategy.md) | Which models, why, running locally, deploying to cloud, cost, evaluation, governance |
 | [25 Model data governance](architecture/25-model-data-governance.md) | The approval gate: data classification, rights, region, provider terms, enforcement, revocation |
+| [26 Cloud service mapping](architecture/26-cloud-service-mapping.md) | Which AWS and Azure services, today and at full scope; Functions vs containers; where APIM earns its place |
 
 ### Decision records
 

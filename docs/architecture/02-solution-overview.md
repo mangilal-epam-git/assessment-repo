@@ -118,6 +118,7 @@ built.
 
 | Container | Responsibility | Why it is separate |
 | --- | --- | --- |
+| API gateway | Authentication, quotas, routing. **No product chosen yet** — today the edge is WAF plus a load balancer, and services authenticate for themselves. AWS API Gateway or Azure APIM earns its place at phase 4, when partner self-service begins ([26.3](26-cloud-service-mapping.md#263-api-management--a-real-gap-named)) | Deferring it costs nothing now and avoids a developer portal nobody uses yet |
 | Catalogue | Owns canonical product IDs and their defining attributes | The canonical ID is the comparison key; one owner prevents drift |
 | **Offer normalisation and ranking** | Fetch, validate, normalise and rank provider offers | Pure, stateless, deterministic — the part that must be reproducible |
 | Pricing and margin | Margin configuration with versioned approvals and effective times | Changing a margin is a governed act, not a config edit |
