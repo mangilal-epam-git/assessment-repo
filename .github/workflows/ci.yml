@@ -51,8 +51,8 @@ jobs:
             echo "## Test results — ${{ matrix.os }}, Node ${{ matrix.node }}"
             echo
             if [ -f reports/junit.xml ]; then
-              total=$(grep -o '<testcase ' reports/junit.xml | wc -l | tr -d ' ')
-              failed=$(grep -o '<failure' reports/junit.xml | wc -l | tr -d ' ')
+              total=$(grep -c '<testcase ' reports/junit.xml || true)
+              failed=$(grep -c '<failure' reports/junit.xml || true)
               echo "| Metric | Value |"
               echo "| --- | --- |"
               echo "| Tests | $total |"
@@ -134,8 +134,8 @@ jobs:
           # The winning provider for each product is fixed by the brief's
           # fixtures and evaluation instant; a drift here is a contract break.
           actual=$(curl -fsS http://localhost:8080/best-offers \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s);console.log(b.offers.map(o=>o.productId+'='+o.providerId+'@'+o.costPer1000ValidEventsEUR).join(','))})")
-          expected='eu-north-diagnostics-hour=telemetry1@0.193787,eu-north-location-hour=telemetry2@0.115404,eu-north-temperature-hour=telemetry2@0.434708,eu-west-braking-hour=telemetry2@0.178241,eu-west-ev-health-hour=telemetry2@0.435417'
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s);console.log(b.offers.map(o=>o.productId+'='+o.providerId+'@'+o.costPer1000ValidEventsEUR).join[...]
+          expected='eu-north-diagnostics-hour=telemetry1@0.193787,eu-north-location-hour=telemetry2@0.115404,eu-north-temperature-hour=telemetry2@0.434708,eu-west-braking-hour=telemetry2@0.178241[...]
           echo "actual:   $actual"
           echo "expected: $expected"
           test "$actual" = "$expected"
