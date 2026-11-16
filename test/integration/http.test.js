@@ -233,3 +233,30 @@ test('GET /best-offers requires no query parameters and ignores extras', async (
   const extra = await (await fetch(`${ctx.baseUrl}/best-offers?anything=1`)).json();
   assert.deepEqual(extra.offers, plain.offers);
 });
+
+test('the service root lists its endpoints instead of returning a bare 404', async (t) => {
+  const ctx = await boot();
+  t.after(() => ctx.close());
+
+  const response = await fetch(`${ctx.baseUrl}/`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.service, 'best-offers');
+  assert.ok(body.endpoints.includes('/best-offers'));
+  assert.equal(body.configuration.fxVersion, 'fx-demo-1');
+  // Points at the separate provider service rather than leaving someone
+  // hunting for /provider/* on this port.
+  assert.match(body.upstreamProviders, /PROVIDER_TELEMETRY1_URL/);
+});
+
+test('the mock provider root lists both feeds and the fault-injection options', async (t) => {
+  const { startMockProviders } = await import('../../src/mock-providers/server.js');
+  const mocks = await startMockProviders({ port: 0, host: '127.0.0.1' });
+  t.after(() => mocks.close());
+
+  const body = await (await fetch(`${mocks.baseUrl}/`)).json();
+  assert.equal(body.service, 'mock-telemetry-providers');
+  assert.deepEqual(body.endpoints, ['/provider/telemetry1', '/provider/telemetry2', '/healthz']);
+  assert.ok(body.faultInjection['delayMs=N']);
+  assert.match(body.description, /identity comes from\s+the endpoint/);
+});

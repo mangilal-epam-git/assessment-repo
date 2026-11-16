@@ -198,12 +198,19 @@ docker compose up --build        # or: make up
 
 | Service | URL |
 | --- | --- |
-| Best offers | http://localhost:8080/best-offers |
+| Best offers (ranked result) | http://localhost:8080/best-offers |
 | Health | http://localhost:8080/healthz |
 | Readiness | http://localhost:8080/readyz |
 | Metrics | http://localhost:8080/metrics |
-| Mock provider 1 | http://localhost:8081/provider/telemetry1 |
-| Mock provider 2 | http://localhost:8081/provider/telemetry2 |
+| Provider 1 raw feed | http://localhost:8081/provider/telemetry1 |
+| Provider 2 raw feed | http://localhost:8081/provider/telemetry2 |
+
+The provider feeds are served by a **separate service on port 8081**. The
+brief writes them as `https://<host>/provider/telemetry1`, where `<host>` is
+that provider service — not the one serving `/best-offers`. Keeping them
+apart is deliberate: it is what makes provider identity a property of the
+configured endpoint rather than of a field in a row. Both services list
+their own endpoints at `/`.
 | **Fleet assistant console** | **http://localhost:8082/** (start with `npm run agent`) |
 
 Stop with `docker compose down -v` (or `make down`).

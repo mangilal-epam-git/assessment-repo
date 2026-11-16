@@ -106,6 +106,26 @@ export function createApp({
     res.on('finish', () => finish(res.statusCode));
 
     try {
+      if (route === '/' || route === '/index.html') {
+        const snapshot = configStore.current();
+        sendJson(res, 200, {
+          service: 'best-offers',
+          description:
+            'Returns the best eligible offer per canonical telemetry product, ' +
+            'ranked on quality-normalised cost per 1000 valid events.',
+          endpoints: ['/best-offers', '/healthz', '/readyz', '/metrics'],
+          configuration: {
+            fxVersion: snapshot.fxVersion,
+            marginVersion: snapshot.marginVersion,
+            currency: snapshot.baseCurrency,
+          },
+          // The provider feeds are a separate service; naming it here saves
+          // anyone looking for /provider/* on the wrong port.
+          upstreamProviders: 'configured separately; see PROVIDER_TELEMETRY1_URL and PROVIDER_TELEMETRY2_URL',
+        });
+        return;
+      }
+
       if (route === '/healthz' || route === '/readyz' || route === '/metrics') {
         if (req.method !== 'GET' && req.method !== 'HEAD') {
           sendJson(res, 405, errorBody(ErrorCode.METHOD_NOT_ALLOWED, 'Use GET', requestId), {

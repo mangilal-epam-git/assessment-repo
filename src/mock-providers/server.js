@@ -47,6 +47,26 @@ function sendJson(res, status, body) {
 async function handle(req, res, requestCounts) {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
+  // A bare 404 at the root leaves anyone browsing the service guessing
+  // which paths exist. Listing them costs nothing and saves a support
+  // question.
+  if (url.pathname === '/' || url.pathname === '/index.html') {
+    sendJson(res, 200, {
+      service: 'mock-telemetry-providers',
+      description:
+        'Placeholder data sources standing in for certified telemetry providers. ' +
+        'Both routes return the same Offer schema; provider identity comes from ' +
+        'the endpoint the consumer is configured with, never from a field in a row.',
+      endpoints: Object.keys(ROUTES).concat(['/healthz']),
+      faultInjection: {
+        'fail=500|404|invalid-json|not-array|empty-body': 'force a failure mode',
+        'delayMs=N': 'delay the response',
+        'failFirst=N': 'fail the first N requests, then succeed',
+      },
+    });
+    return;
+  }
+
   if (url.pathname === '/healthz') {
     sendJson(res, 200, { status: 'ok' });
     return;

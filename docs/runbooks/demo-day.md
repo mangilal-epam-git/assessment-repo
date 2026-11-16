@@ -135,11 +135,35 @@ You want **five** offers. Zero means `FIXED_CLOCK` is missing from window 2.
 
 ## The demo
 
-Browser tabs to open in advance:
+### Every URL, and which service serves it
 
-1. <http://localhost:8082/> — the supervision console
-2. <http://localhost:8080/best-offers> — the ranked offers
-3. <http://localhost:8081/provider/telemetry1> and `/telemetry2` — the raw feeds
+Each service owns its own port. The brief writes the provider endpoints as
+`https://<host>/provider/telemetry1`; `<host>` is the **provider** service,
+which is deliberately separate from the one that ranks the offers — that
+separation is what proves provider identity comes from the configured
+endpoint rather than from a field in a row.
+
+| URL | Port | What it is |
+| --- | --- | --- |
+| <http://localhost:8081/provider/telemetry1> | 8081 | **Raw feed, provider 1.** The brief's `<host>/provider/telemetry1` |
+| <http://localhost:8081/provider/telemetry2> | 8081 | **Raw feed, provider 2** |
+| <http://localhost:8080/best-offers> | 8080 | **The ranked result.** One winning offer per product |
+| <http://localhost:8082/> | 8082 | **The supervision console.** The agent demo |
+| <http://localhost:8081/> | 8081 | Index of the provider routes |
+| <http://localhost:8080/> | 8080 | Index of the offers service, with the live config versions |
+| <http://localhost:8080/metrics> | 8080 | Prometheus metrics |
+
+> **`/provider/*` is on 8081, not 8080.** Asking port 8080 for
+> `/provider/telemetry1` returns `NOT_FOUND`, because that service consumes
+> the feeds rather than serving them. Both roots now list their own
+> endpoints, so a wrong guess tells you where to go.
+
+Browser tabs to open in advance, left to right in demo order:
+
+1. <http://localhost:8081/provider/telemetry1>
+2. <http://localhost:8081/provider/telemetry2>
+3. <http://localhost:8080/best-offers>
+4. <http://localhost:8082/>
 
 ### Act 1 — the price you can prove (3 minutes)
 
